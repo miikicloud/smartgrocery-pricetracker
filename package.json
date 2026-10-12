@@ -1,0 +1,20 @@
+{
+  "name": "smartgrocery-pricetracker",
+  "version": "1.0.0",
+  "description": "Smart Grocery & Budget Safety Tracker Mobile PWA",
+  "main": "serve.js",
+  "scripts": {
+    "start": "node serve.js",
+    "dev": "node serve.js",
+    "serve": "node serve.js",
+    "test": "node test_calculations.js && node test_auth.js"
+  },
+  "keywords": [
+    "pwa",
+    "grocery",
+    "budget-tracker",
+    "mobile-app"
+  ],
+  "author": "Mikayla Subrata",
+  "license": "MIT"
+}
