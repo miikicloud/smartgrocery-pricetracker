@@ -71,9 +71,11 @@
               </svg>
             </button>
 
-            <!-- Super Admin Live Edit Button (Khusus Mikayla Subrata) -->
-            <button id="adminPanelBtn" class="icon-btn" style="display:none; background:rgba(245,158,11,0.2); border-color:#f59e0b; color:#fbbf24;" title="Super Admin Control Center" aria-label="Admin Control">
-              👑
+            <!-- Snapshot Belanja Real-Time (onSnapshot) -->
+            <button id="snapshotBtn" class="icon-btn" title="Snapshot Belanja Real-Time (onSnapshot)" aria-label="Snapshot Belanja">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>
+              </svg>
             </button>
 
             <!-- User Auth & Cloud Sync Button -->
@@ -90,11 +92,6 @@
               </svg>
             </button>
           </div>
-        </div>
-
-        <!-- Global Announcement Banner (Live diatur oleh Super Admin Mikayla) -->
-        <div id="globalAnnouncementBanner" class="announcement-banner">
-          <span id="globalAnnouncementText">📢 Selamat datang di Smart Grocery Tracker! Belanja hemat, anti-overbudget.</span>
         </div>
 
         <!-- Sticky Budget Safety Cap Gauge Card -->
@@ -121,10 +118,21 @@
             <div id="budgetRemainingText" class="budget-remaining">
               Sisa Saku: <b>Rp 350.000</b>
             </div>
-            <div id="safetyBufferTag" class="safety-buffer-tag">
-              Cadangan: Rp 15.000
+            <div class="budget-footer-right" style="display:flex; align-items:center; gap:8px;">
+              <div id="safetyBufferTag" class="safety-buffer-tag">
+                Cadangan: Rp 15.000
+              </div>
+              <div id="onSnapshotLiveBadge" class="live-snapshot-badge" title="onSnapshot Real-time Listener Aktif">
+                <span class="pulse-dot"></span> onSnapshot
+              </div>
             </div>
           </div>
+        </div>
+
+        <!-- Dynamic Budget Alert Banner (SRS F-05) -->
+        <div id="budgetWarningBanner" class="budget-alert-banner" style="display:none;">
+          <span class="alert-icon">🚨</span>
+          <span id="budgetWarningBannerText">Total belanja melebihi batas saldo dompet! Kurangi kuantitas atau batalkan barang sekunder.</span>
         </div>
       </header>
 
@@ -133,6 +141,33 @@
 
         <!-- TAB 1: BELANJA & TROLI AKTIF -->
         <section id="viewBelanja">
+          <!-- Sesi Belanja: Toko Grosir & Tanggal Transaksi (SRS F-01) -->
+          <div class="session-store-card">
+            <div class="session-store-row">
+              <div class="session-field-group">
+                <label class="session-field-label" for="selectStore">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>
+                  Toko Grosir
+                </label>
+                <select id="selectStore" class="session-select">
+                  <option value="Lotte Mart Grocery - Puri Indah" selected>Lotte Mart Grocery - Puri Indah</option>
+                  <option value="Superindo - Daan Mogot">Superindo - Daan Mogot</option>
+                  <option value="Indomaret Fresh">Indomaret Fresh</option>
+                  <option value="Hypermart Puri">Hypermart Puri</option>
+                  <option value="Toko Grosir Lainnya">Toko Grosir Lainnya</option>
+                </select>
+              </div>
+
+              <div class="session-field-group date-group">
+                <label class="session-field-label" for="sessionDatePicker">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                  Tanggal Belanja
+                </label>
+                <input type="date" id="sessionDatePicker" class="session-date-input">
+              </div>
+            </div>
+          </div>
+
           <!-- Alur Sistem Cerdas Belanja Supermarket Banner -->
           <div class="smart-workflow-bar">
             <div class="workflow-step-pill active" title="Langkah 1: Atur Budget Saku">
@@ -245,13 +280,13 @@
 
               <div class="form-group">
                 <label class="form-label" for="inputBudgetCap">Batas Anggaran / Uang Saku Dompet (Rp) *</label>
-                <input type="number" id="inputBudgetCap" class="form-input form-input-lg" placeholder="Contoh: 350000" min="0" step="1000">
+                <input type="number" id="inputBudgetCap" inputmode="numeric" class="form-input form-input-lg" placeholder="Contoh: 350000" min="0" step="1000">
                 <span style="font-size:0.72rem; color:var(--text-muted);">Batas maksimal uang yang kamu bawa ke supermarket.</span>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="inputSafetyBuffer">Safety Buffer / Cadangan Darurat (Rp)</label>
-                <input type="number" id="inputSafetyBuffer" class="form-input" placeholder="Contoh: 15000" min="0" step="1000">
+                <input type="number" id="inputSafetyBuffer" inputmode="numeric" class="form-input" placeholder="Contoh: 15000" min="0" step="1000">
                 <span style="font-size:0.72rem; color:var(--text-muted);">Uang cadangan untuk biaya parkir, kantong kresek, dan pembulatan kasir.</span>
               </div>
 
@@ -372,18 +407,18 @@
             <div class="input-row-grid">
               <div class="form-group">
                 <label class="form-label" for="inputQty">Kuantitas Beli (Qty)</label>
-                <input type="number" id="inputQty" class="form-input form-input-lg" min="1" step="1" value="1" required>
+                <input type="number" id="inputQty" inputmode="numeric" class="form-input form-input-lg" min="1" step="1" value="1" required>
               </div>
               <div class="form-group">
                 <label class="form-label" for="inputUnitPrice">Harga Satuan Saat Ini (Rp) *</label>
-                <input type="number" id="inputUnitPrice" class="form-input form-input-lg" placeholder="Contoh: 35000" min="0" step="100" required>
+                <input type="number" id="inputUnitPrice" inputmode="numeric" class="form-input form-input-lg" placeholder="Contoh: 35000" min="0" step="100" required>
               </div>
             </div>
 
             <!-- Harga Bulan Lalu (Untuk Deteksi Fluktuasi Realtime) -->
             <div class="form-group">
               <label class="form-label" for="inputLastMonthPrice">Harga Riwayat Bulan Lalu (Rp)</label>
-              <input type="number" id="inputLastMonthPrice" class="form-input" placeholder="Harga patokan bulan lalu untuk produk ini" min="0" step="100">
+              <input type="number" id="inputLastMonthPrice" inputmode="numeric" class="form-input" placeholder="Harga patokan bulan lalu untuk produk ini" min="0" step="100">
               <span style="font-size:0.72rem; color:var(--text-muted);">Indikator panah akan seketika muncul membandingkan harga.</span>
             </div>
 
@@ -409,15 +444,15 @@
 
               <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:8px; margin-top:8px;">
                 <div>
-                  <input type="number" id="inputDisc1" class="form-input" placeholder="Disc 1 %" min="0" max="100" value="0">
+                  <input type="number" id="inputDisc1" inputmode="numeric" class="form-input" placeholder="Disc 1 %" min="0" max="100" value="0">
                   <span style="font-size:0.68rem; color:var(--text-muted);">Diskon 1 (%)</span>
                 </div>
                 <div>
-                  <input type="number" id="inputDisc2" class="form-input" placeholder="Disc 2 %" min="0" max="100" value="0">
+                  <input type="number" id="inputDisc2" inputmode="numeric" class="form-input" placeholder="Disc 2 %" min="0" max="100" value="0">
                   <span style="font-size:0.68rem; color:var(--text-muted);">Diskon 2 bertumpuk (%)</span>
                 </div>
                 <div>
-                  <input type="number" id="inputFixedDiscount" class="form-input" placeholder="Voucher Rp" min="0" value="0">
+                  <input type="number" id="inputFixedDiscount" inputmode="numeric" class="form-input" placeholder="Voucher Rp" min="0" value="0">
                   <span style="font-size:0.68rem; color:var(--text-muted);">Kupon/Voucher (Rp)</span>
                 </div>
               </div>
@@ -489,17 +524,12 @@
                   <h3 id="authUserNameDisplay" style="font-size:1.05rem; font-weight:800; color:var(--text-main);">Nama Pengguna</h3>
                   <div id="authUserEmailDisplay" style="font-size:0.78rem; color:var(--text-secondary);">email@domain.com</div>
                 </div>
-                <div id="authRoleBadge" class="budget-status-pill pill-safe">Siswa</div>
+                <div id="authRoleBadge" class="budget-status-pill pill-safe">🟢 Terhubung</div>
               </div>
               <div style="margin-top:10px; font-size:0.75rem; color:var(--emerald-400); display:flex; align-items:center; gap:6px;">
                 🟢 <span>Data Belanja & Memori Harga Tersinkronisasi Otomatis ke Cloud!</span>
               </div>
             </div>
-
-            <!-- Tombol Admin Khusus Mikayla -->
-            <button id="btnOpenAdminFromAuth" class="btn-primary" style="display:none; background:linear-gradient(135deg, #f59e0b, #d97706); color:#451a03;">
-              👑 Buka Live Admin Control Center
-            </button>
 
             <button id="btnLogout" class="btn-secondary" style="width:100%; color:var(--rose-400);">
               Keluar dari Akun (Logout)
@@ -517,18 +547,13 @@
             <form id="loginForm">
               <div class="form-group">
                 <label class="form-label" for="loginEmail">Email Akun *</label>
-                <input type="email" id="loginEmail" class="form-input" placeholder="contoh: mikaylasubrata@mutiarabangsa.sch.id" required>
+                <input type="email" id="loginEmail" class="form-input" placeholder="contoh: user@smartgrocery.app" required>
               </div>
               <div class="form-group">
                 <label class="form-label" for="loginPassword">Password *</label>
                 <input type="password" id="loginPassword" class="form-input" placeholder="Masukkan password" required>
               </div>
               <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">Masuk ke Akun Cloud</button>
-
-              <!-- Tombol Masuk Cepat Super Admin Mikayla Subrata -->
-              <button id="quickLoginAdminBtn" type="button" class="btn-secondary" style="width:100%; margin-top:8px; border-color:#f59e0b; color:#fbbf24; font-size:0.78rem;">
-                👑 Masuk Cepat: Super Admin Mikayla Subrata
-              </button>
             </form>
 
             <!-- Form Register -->
@@ -538,8 +563,8 @@
                 <input type="text" id="registerName" class="form-input" placeholder="Misal: Budi Santoso" required>
               </div>
               <div class="form-group">
-                <label class="form-label" for="registerEmail">Email Sekolah / Siswa *</label>
-                <input type="email" id="registerEmail" class="form-input" placeholder="email@sekolah.sch.id" required>
+                <label class="form-label" for="registerEmail">Email Pengguna *</label>
+                <input type="email" id="registerEmail" class="form-input" placeholder="contoh: budi@domain.com" required>
               </div>
               <div class="form-group">
                 <label class="form-label" for="registerPassword">Password Baru *</label>
@@ -552,78 +577,72 @@
       </div>
 
       <!-- ==========================================================================
-           MODAL SUPER ADMIN CONTROL CENTER: LIVE EDIT SELURUH APLIKASI
-           Khusus Akun: mikaylasubrata@mutiarabangsa.sch.id (Password: Mikayla2)
+           MODAL SNAPSHOT BELANJA & ANGGARAN (FITUR ONSNAPSHOT REAL-TIME)
            ========================================================================== -->
-      <div id="adminModal" class="modal-overlay">
-        <div class="bottom-sheet" style="max-height:92vh;">
+      <div id="snapshotModal" class="modal-overlay">
+        <div class="bottom-sheet" style="max-height:88vh;">
           <div class="sheet-handle"></div>
-          
+
           <div class="sheet-header">
             <div>
-              <h2 class="sheet-title" style="color:#fbbf24; display:flex; align-items:center; gap:6px;">
-                👑 Live Admin Control Center
+              <h2 class="sheet-title" style="display:flex; align-items:center; gap:8px;">
+                📸 Snapshot Belanja Real-Time
               </h2>
-              <div style="font-size:0.72rem; color:var(--text-muted);">
-                Super Admin: <b>Mikayla Subrata</b> • Mutiara Bangsa
+              <div style="font-size:0.75rem; color:var(--text-muted);">
+                Ambil & pulihkan arsip troli instan dengan listener <b>onSnapshot</b>
               </div>
             </div>
-            <button id="btnCloseAdmin" class="icon-btn" aria-label="Tutup panel admin">
+            <button id="btnCloseSnapshot" class="icon-btn" aria-label="Tutup panel snapshot">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
-          <form id="adminForm" style="display:flex; flex-direction:column; gap:12px;">
-            <div style="font-size:0.78rem; font-weight:700; color:var(--emerald-400);">
-              🛠️ 1. Live Edit Identitas & Tampilan Aplikasi
+          <div style="display:flex; flex-direction:column; gap:14px; overflow-y:auto; padding-bottom:8px;">
+            <!-- Realtime Banner -->
+            <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-md); padding:10px 12px; display:flex; align-items:center; gap:10px;">
+              <span class="pulse-dot" style="width:8px; height:8px; background:var(--emerald-400); border-radius:50%; box-shadow:0 0 8px var(--emerald-400); flex-shrink:0;"></span>
+              <div style="font-size:0.75rem; color:var(--emerald-400); line-height:1.4;">
+                <b>Listener onSnapshot Aktif:</b> Perubahan troli, harga, dan sisa anggaran tersinkronisasi otomatis secara realtime antar-tab.
+              </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="adminInputTitle">Judul Aplikasi (Header)</label>
-              <input type="text" id="adminInputTitle" class="form-input" placeholder="Smart Grocery" required>
+            <!-- Tombol Buat Snapshot -->
+            <div style="background:var(--bg-input); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+              <label class="form-label" for="inputSnapshotLabel">Label / Catatan Snapshot (Opsional)</label>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="inputSnapshotLabel" class="form-input" placeholder="Contoh: Belanja Bulanan Kos" style="flex:1;">
+                <button id="btnTakeSnapshot" type="button" class="btn-primary" style="white-space:nowrap; padding:0 14px; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px;">
+                  📸 Buat Snapshot
+                </button>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="adminInputSubtitle">Subtitle / Tagline Sekolah</label>
-              <input type="text" id="adminInputSubtitle" class="form-input" placeholder="Budget Safety Tracker • Mutiara Bangsa" required>
+            <!-- Daftar Snapshot -->
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:0.8rem; font-weight:700; color:var(--text-main);">Daftar Snapshot Tersimpan</span>
+                <span id="snapshotCountBadge" style="font-size:0.72rem; color:var(--text-muted);">0 snapshot</span>
+              </div>
+              <div id="snapshotListContainer" style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto;">
+                <!-- Generated by JS -->
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
 
-            <div class="form-group">
-              <label class="form-label" for="adminSelectColor">Warna Aksen Tema Aplikasi</label>
-              <select id="adminSelectColor" class="form-input select-input">
-                <option value="#10b981">Emerald Green (Standar Hijau Tropis)</option>
-                <option value="#6366f1">Royal Indigo (Elegan Kampus)</option>
-                <option value="#0ea5e9">Ocean Cyan (Biru Segar)</option>
-                <option value="#f59e0b">Golden Amber (Emas Mewah)</option>
-                <option value="#f43f5e">Ruby Rose (Merah Modern)</option>
-              </select>
-            </div>
-
-            <div style="font-size:0.78rem; font-weight:700; color:var(--emerald-400); margin-top:6px;">
-              📢 2. Live Broadcast Pengumuman Global ke Seluruh Siswa
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="adminInputAnnouncement">Teks Pengumuman di Atas Layar</label>
-              <input type="text" id="adminInputAnnouncement" class="form-input" placeholder="Tulis pengumuman diskon atau tips belanja...">
-              <span style="font-size:0.7rem; color:var(--text-muted);">Pesan ini seketika muncul di bagian atas aplikasi bagi seluruh pengguna.</span>
-            </div>
-
-            <div style="font-size:0.78rem; font-weight:700; color:var(--emerald-400); margin-top:6px;">
-              👥 3. Database Akun Terdaftar di Cloud Storage
-            </div>
-
-            <div id="adminUsersTableBody" style="background:var(--bg-input); padding:10px 12px; border-radius:var(--radius-md); max-height:140px; overflow-y:auto;">
-              <!-- Generated by JS -->
-            </div>
-
-            <div class="sheet-btn-row" style="margin-top:10px;">
-              <button type="button" class="btn-secondary" onclick="document.getElementById('adminModal').classList.remove('open')">Batal</button>
-              <button type="submit" class="btn-primary" style="background:linear-gradient(135deg, #f59e0b, #d97706); color:#451a03;">
-                Terapkan Perubahan Live
-              </button>
-            </div>
-          </form>
+      <!-- ==========================================================================
+           CUSTOM CONFIRMATION DIALOG MODAL (NON-BLOCKING SRS UX)
+           ========================================================================== -->
+      <div id="confirmDialogModal" class="modal-overlay">
+        <div class="confirm-dialog-card">
+          <div class="confirm-dialog-icon" id="confirmDialogIcon">⚠️</div>
+          <h3 class="confirm-dialog-title" id="confirmDialogTitle">Konfirmasi Tindakan</h3>
+          <p class="confirm-dialog-message" id="confirmDialogMessage">Apakah kamu yakin ingin melanjutkan?</p>
+          <div class="confirm-dialog-actions">
+            <button id="btnConfirmCancel" type="button" class="btn-secondary" style="flex:1;">Batal</button>
+            <button id="btnConfirmOk" type="button" class="btn-primary" style="flex:1; background:var(--rose-500);">Ya, Lanjutkan</button>
+          </div>
         </div>
       </div>
 

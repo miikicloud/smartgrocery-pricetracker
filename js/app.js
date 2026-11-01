@@ -7,8 +7,8 @@ import { CATEGORIES, UNITS, QUICK_CATALOG } from './data.js';
 import { Calculations } from './calculations.js';
 import { Storage, SoundFeedback } from './storage.js';
 import { getIcon } from './icons.js';
-import { Auth, SUPER_ADMIN_CREDENTIALS } from './auth.js';
-import { AdminPanel } from './admin.js';
+import { Auth } from './auth.js';
+import { FirebaseSync } from './firebase.js';
 
 class SmartGroceryApp {
   constructor() {
@@ -19,11 +19,14 @@ class SmartGroceryApp {
     this.historySessions = Storage.getHistory();
     this.editingItemId = null;
     this.deferredPrompt = null;
+    this.unsubscribeSnapshot = null;
 
     this.initElements();
+    this.initSessionStore();
     this.attachEventListeners();
     this.setupPWAInstall();
-    this.initAuthAndAdmin();
+    this.initAuth();
+    this.initSnapshotListener();
     this.render();
   }
 
@@ -36,8 +39,24 @@ class SmartGroceryApp {
     this.budgetProgressFill = document.getElementById('budgetProgressFill');
     this.budgetRemainingText = document.getElementById('budgetRemainingText');
     this.safetyBufferTag = document.getElementById('safetyBufferTag');
+    this.onSnapshotLiveBadge = document.getElementById('onSnapshotLiveBadge');
     this.themeToggleBtn = document.getElementById('themeToggleBtn');
     this.checkoutSimBtn = document.getElementById('checkoutSimBtn');
+    this.snapshotBtn = document.getElementById('snapshotBtn');
+    this.budgetWarningBanner = document.getElementById('budgetWarningBanner');
+    this.budgetWarningBannerText = document.getElementById('budgetWarningBannerText');
+
+    // Sesi Toko & Tanggal (SRS F-01)
+    this.selectStore = document.getElementById('selectStore');
+    this.sessionDatePicker = document.getElementById('sessionDatePicker');
+
+    // Custom Confirmation Dialog (Non-blocking SRS UX)
+    this.confirmDialogModal = document.getElementById('confirmDialogModal');
+    this.confirmDialogTitle = document.getElementById('confirmDialogTitle');
+    this.confirmDialogMessage = document.getElementById('confirmDialogMessage');
+    this.confirmDialogIcon = document.getElementById('confirmDialogIcon');
+    this.btnConfirmCancel = document.getElementById('btnConfirmCancel');
+    this.btnConfirmOk = document.getElementById('btnConfirmOk');
 
     // Main Containers
     this.viewBelanja = document.getElementById('viewBelanja');
@@ -81,6 +100,14 @@ class SmartGroceryApp {
     this.btnCloseCheckout = document.getElementById('btnCloseCheckout');
     this.btnFinishShopping = document.getElementById('btnFinishShopping');
 
+    // Snapshot Modal Elements (Fitur onSnapshot)
+    this.snapshotModal = document.getElementById('snapshotModal');
+    this.btnCloseSnapshot = document.getElementById('btnCloseSnapshot');
+    this.btnTakeSnapshot = document.getElementById('btnTakeSnapshot');
+    this.inputSnapshotLabel = document.getElementById('inputSnapshotLabel');
+    this.snapshotCountBadge = document.getElementById('snapshotCountBadge');
+    this.snapshotListContainer = document.getElementById('snapshotListContainer');
+
     // Budget Settings Elements in Tab 3
     this.inputBudgetCap = document.getElementById('inputBudgetCap');
     this.inputSafetyBuffer = document.getElementById('inputSafetyBuffer');
@@ -92,9 +119,8 @@ class SmartGroceryApp {
     this.toastBanner = document.getElementById('toastBanner');
     this.toastText = document.getElementById('toastText');
 
-    // Auth & Admin Elements
+    // Auth Elements
     this.userAuthBtn = document.getElementById('userAuthBtn');
-    this.adminPanelBtn = document.getElementById('adminPanelBtn');
     this.authModal = document.getElementById('authModal');
     this.btnCloseAuth = document.getElementById('btnCloseAuth');
     this.authLoggedInView = document.getElementById('authLoggedInView');
@@ -104,18 +130,11 @@ class SmartGroceryApp {
     this.loginForm = document.getElementById('loginForm');
     this.loginEmail = document.getElementById('loginEmail');
     this.loginPassword = document.getElementById('loginPassword');
-    this.quickLoginAdminBtn = document.getElementById('quickLoginAdminBtn');
     this.registerForm = document.getElementById('registerForm');
     this.registerName = document.getElementById('registerName');
     this.registerEmail = document.getElementById('registerEmail');
     this.registerPassword = document.getElementById('registerPassword');
     this.btnLogout = document.getElementById('btnLogout');
-    this.btnOpenAdminFromAuth = document.getElementById('btnOpenAdminFromAuth');
-
-    // Admin Modal Elements
-    this.adminModal = document.getElementById('adminModal');
-    this.btnCloseAdmin = document.getElementById('btnCloseAdmin');
-    this.adminForm = document.getElementById('adminForm');
   }
 
   attachEventListeners() {
@@ -128,30 +147,23 @@ class SmartGroceryApp {
       });
     });
 
-    // Super Admin Panel Button & Modal
-    if (this.adminPanelBtn) {
-      this.adminPanelBtn.addEventListener('click', () => {
-        AdminPanel.open(this);
+    // Snapshot Modal Button
+    if (this.snapshotBtn) {
+      this.snapshotBtn.addEventListener('click', () => {
+        SoundFeedback.tap();
+        this.openSnapshotModal();
       });
     }
 
-    if (this.btnOpenAdminFromAuth) {
-      this.btnOpenAdminFromAuth.addEventListener('click', () => {
-        this.authModal.classList.remove('open');
-        AdminPanel.open(this);
+    if (this.btnCloseSnapshot) {
+      this.btnCloseSnapshot.addEventListener('click', () => {
+        this.closeSnapshotModal();
       });
     }
 
-    if (this.btnCloseAdmin) {
-      this.btnCloseAdmin.addEventListener('click', () => {
-        AdminPanel.close();
-      });
-    }
-
-    if (this.adminForm) {
-      this.adminForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        AdminPanel.applyLiveChanges(this);
+    if (this.btnTakeSnapshot) {
+      this.btnTakeSnapshot.addEventListener('click', () => {
+        this.handleTakeSnapshot();
       });
     }
 
@@ -186,15 +198,6 @@ class SmartGroceryApp {
       });
     }
 
-    // Quick Login Super Admin Button (Mikayla Subrata)
-    if (this.quickLoginAdminBtn) {
-      this.quickLoginAdminBtn.addEventListener('click', () => {
-        this.loginEmail.value = SUPER_ADMIN_CREDENTIALS.email;
-        this.loginPassword.value = SUPER_ADMIN_CREDENTIALS.password;
-        this.processLogin(SUPER_ADMIN_CREDENTIALS.email, SUPER_ADMIN_CREDENTIALS.password);
-      });
-    }
-
     // Login Form Submit
     if (this.loginForm) {
       this.loginForm.addEventListener('submit', (e) => {
@@ -218,7 +221,8 @@ class SmartGroceryApp {
           this.updateAuthUI();
           this.syncCurrentDataWithCloud();
         } else {
-          alert(res.message);
+          SoundFeedback.warning();
+          this.showToast(res.message, true);
         }
       });
     }
@@ -361,8 +365,14 @@ class SmartGroceryApp {
 
     // Reset Data
     if (this.btnResetDemoData) {
-      this.btnResetDemoData.addEventListener('click', () => {
-        if (confirm('Kembalikan data barang & riwayat ke contoh awal anak rantau?')) {
+      this.btnResetDemoData.addEventListener('click', async () => {
+        const ok = await this.showConfirmDialog(
+          'Reset Data Contoh',
+          'Kembalikan data barang & riwayat ke contoh awal anak rantau?',
+          '🔄',
+          'Ya, Reset'
+        );
+        if (ok) {
           Storage.resetToSampleData();
           this.items = Storage.getItems();
           this.budgetConfig = Storage.getBudgetConfig();
@@ -427,33 +437,96 @@ class SmartGroceryApp {
   }
 
   // ==========================================================================
-  // AUTENTIKASI, CLOUD SYNC & SUPER ADMIN LIVE EDIT
+  // SESI BELANJA & TOKO GROSIR (SRS F-01)
   // ==========================================================================
 
-  initAuthAndAdmin() {
-    // 1. Terapkan App Config dari Admin
-    const appConfig = Auth.getAppConfig();
-    AdminPanel.applyConfigToDOM(appConfig);
+  initSessionStore() {
+    const meta = Storage.getSessionMeta();
+    if (this.selectStore && meta.storeName) {
+      this.selectStore.value = meta.storeName;
+    }
+    if (this.sessionDatePicker) {
+      this.sessionDatePicker.value = meta.shoppingDate || new Date().toISOString().split('T')[0];
+    }
 
-    // 2. Sinkronkan tampilan status akun & status Super Admin
+    if (this.selectStore) {
+      this.selectStore.addEventListener('change', () => {
+        const storeName = this.selectStore.value;
+        const shoppingDate = this.sessionDatePicker ? this.sessionDatePicker.value : '';
+        Storage.saveSessionMeta({ storeName, shoppingDate });
+        this.syncCurrentDataWithCloud();
+        this.showToast(`🏬 Toko diatur ke: ${storeName}`);
+      });
+    }
+
+    if (this.sessionDatePicker) {
+      this.sessionDatePicker.addEventListener('change', () => {
+        const storeName = this.selectStore ? this.selectStore.value : '';
+        const shoppingDate = this.sessionDatePicker.value;
+        Storage.saveSessionMeta({ storeName, shoppingDate });
+        this.syncCurrentDataWithCloud();
+        this.showToast(`📅 Tanggal belanja diatur ke: ${shoppingDate}`);
+      });
+    }
+  }
+
+  // ==========================================================================
+  // NON-BLOCKING CONFIRMATION DIALOG (SRS UX)
+  // ==========================================================================
+
+  showConfirmDialog(title, message, icon = '⚠️', confirmBtnText = 'Ya, Lanjutkan', isDanger = true) {
+    return new Promise((resolve) => {
+      if (!this.confirmDialogModal) {
+        resolve(true);
+        return;
+      }
+      this.confirmDialogTitle.textContent = title;
+      this.confirmDialogMessage.textContent = message;
+      this.confirmDialogIcon.textContent = icon;
+      this.btnConfirmOk.textContent = confirmBtnText;
+      this.btnConfirmOk.style.background = isDanger ? 'var(--rose-500)' : 'var(--emerald-500)';
+
+      const cleanup = (result) => {
+        this.confirmDialogModal.classList.remove('open');
+        this.btnConfirmOk.removeEventListener('click', onOk);
+        this.btnConfirmCancel.removeEventListener('click', onCancel);
+        resolve(result);
+      };
+
+      const onOk = () => cleanup(true);
+      const onCancel = () => cleanup(false);
+
+      this.btnConfirmOk.addEventListener('click', onOk);
+      this.btnConfirmCancel.addEventListener('click', onCancel);
+
+      this.confirmDialogModal.classList.add('open');
+      SoundFeedback.tap();
+    });
+  }
+
+  // ==========================================================================
+  // AUTENTIKASI & CLOUD SYNC
+  // ==========================================================================
+
+  initAuth() {
     this.updateAuthUI();
 
-    // 3. Jika user login, pulihkan data dari cloud jika tersedia
+    // Jika user login, pulihkan data dari cloud jika tersedia
     const user = Auth.getCurrentUser();
     if (user) {
       const cloudData = Auth.loadFromCloud(user.id);
       if (cloudData) {
         if (cloudData.items && Array.isArray(cloudData.items)) {
           this.items = cloudData.items;
-          Storage.saveItems(this.items);
+          Storage.saveItems(this.items, false);
         }
         if (cloudData.budgetConfig) {
           this.budgetConfig = cloudData.budgetConfig;
-          Storage.saveBudgetConfig(this.budgetConfig);
+          Storage.saveBudgetConfig(this.budgetConfig, false);
         }
         if (cloudData.history && Array.isArray(cloudData.history)) {
           this.historySessions = cloudData.history;
-          Storage.saveHistory(this.historySessions);
+          Storage.saveHistory(this.historySessions, false);
         }
         if (cloudData.priceMemory) {
           try {
@@ -466,6 +539,225 @@ class SmartGroceryApp {
     }
   }
 
+  // ==========================================================================
+  // FITUR ONSNAPSHOT & REALTIME STATE SYNCHRONIZER (SRS F-06B)
+  // ==========================================================================
+
+  initSnapshotListener() {
+    // 1. Daftarkan listener real-time onSnapshot LocalStorage
+    this.unsubscribeSnapshot = Storage.onSnapshot((snapshot) => {
+      // Sinkronkan jika ada perubahan dari tab lain atau restore snapshot
+      if (snapshot.source === 'cross_tab' || snapshot.source === 'snapshot_restore') {
+        this.items = snapshot.items;
+        this.budgetConfig = snapshot.budgetConfig;
+        this.historySessions = snapshot.history;
+        if (snapshot.sessionMeta) {
+          if (this.selectStore && snapshot.sessionMeta.storeName) {
+            this.selectStore.value = snapshot.sessionMeta.storeName;
+          }
+          if (this.sessionDatePicker && snapshot.sessionMeta.shoppingDate) {
+            this.sessionDatePicker.value = snapshot.sessionMeta.shoppingDate;
+          }
+        }
+        this.render();
+        if (snapshot.source === 'cross_tab') {
+          this.showToast('⚡ Data diperbarui via onSnapshot!');
+        }
+      }
+      this.renderSnapshots();
+      this.flashSnapshotBadge();
+    });
+
+    // 2. Pantau status koneksi Firestore (Realtime vs Offline)
+    FirebaseSync.onStatusChange((status) => {
+      if (!this.onSnapshotLiveBadge) return;
+      if (status === 'connected') {
+        this.onSnapshotLiveBadge.className = 'live-snapshot-badge live-connected';
+        this.onSnapshotLiveBadge.title = 'Cloud Firestore Live: Terhubung Real-Time Multi-Device';
+        this.onSnapshotLiveBadge.innerHTML = '<span class="pulse-dot"></span> Firestore Live';
+      } else if (status === 'connecting') {
+        this.onSnapshotLiveBadge.className = 'live-snapshot-badge live-connecting';
+        this.onSnapshotLiveBadge.title = 'Menghubungkan ke Cloud Firestore...';
+        this.onSnapshotLiveBadge.innerHTML = '<span class="pulse-dot" style="background:var(--amber-400); box-shadow:0 0 6px var(--amber-400);"></span> Menghubungkan';
+      } else {
+        this.onSnapshotLiveBadge.className = 'live-snapshot-badge live-offline';
+        this.onSnapshotLiveBadge.title = 'Mode Offline: Menggunakan LocalStorage (Data aman saat F5)';
+        this.onSnapshotLiveBadge.innerHTML = '<span class="pulse-dot" style="background:var(--text-muted); box-shadow:none;"></span> LocalStorage';
+      }
+    });
+
+    // 3. Daftarkan listener Firestore onSnapshot (SRS F-06B Multi-Device Realtime)
+    FirebaseSync.subscribeSession('active_session', (cloudData, meta) => {
+      if (!cloudData) return;
+      let hasUpdate = false;
+
+      if (cloudData.items && Array.isArray(cloudData.items)) {
+        this.items = cloudData.items;
+        Storage.saveItems(this.items, false);
+        hasUpdate = true;
+      }
+      if (cloudData.budgetConfig) {
+        this.budgetConfig = cloudData.budgetConfig;
+        Storage.saveBudgetConfig(this.budgetConfig, false);
+        hasUpdate = true;
+      }
+      if (cloudData.sessionMeta) {
+        Storage.saveSessionMeta(cloudData.sessionMeta, false);
+        if (this.selectStore && cloudData.sessionMeta.storeName) {
+          this.selectStore.value = cloudData.sessionMeta.storeName;
+        }
+        if (this.sessionDatePicker && cloudData.sessionMeta.shoppingDate) {
+          this.sessionDatePicker.value = cloudData.sessionMeta.shoppingDate;
+        }
+        hasUpdate = true;
+      }
+      if (cloudData.priceMemory) {
+        Storage.savePriceMemory(cloudData.priceMemory, false);
+      }
+      if (cloudData.snapshots && Array.isArray(cloudData.snapshots)) {
+        Storage.saveSnapshots(cloudData.snapshots, false);
+      }
+      if (cloudData.history && Array.isArray(cloudData.history)) {
+        this.historySessions = cloudData.history;
+        Storage.saveHistory(this.historySessions, false);
+      }
+
+      if (hasUpdate) {
+        this.render();
+        const originText = meta && meta.isFromOtherDevice ? 'dari perangkat lain' : 'secara realtime';
+        this.showToast(`🟢 Data ter-update ${originText} via onSnapshot!`);
+        this.flashSnapshotBadge();
+      }
+    });
+  }
+
+  flashSnapshotBadge() {
+    if (!this.onSnapshotLiveBadge) return;
+    this.onSnapshotLiveBadge.classList.add('flash');
+    setTimeout(() => {
+      if (this.onSnapshotLiveBadge) this.onSnapshotLiveBadge.classList.remove('flash');
+    }, 800);
+  }
+
+  openSnapshotModal() {
+    if (!this.snapshotModal) return;
+    this.renderSnapshots();
+    this.snapshotModal.classList.add('open');
+  }
+
+  closeSnapshotModal() {
+    if (this.snapshotModal) {
+      this.snapshotModal.classList.remove('open');
+    }
+  }
+
+  handleTakeSnapshot() {
+    const customLabel = this.inputSnapshotLabel ? this.inputSnapshotLabel.value : '';
+    const snap = Storage.createSnapshot(customLabel);
+    if (this.inputSnapshotLabel) this.inputSnapshotLabel.value = '';
+    SoundFeedback.success();
+    this.showToast(`📸 Snapshot "${snap.label}" berhasil disimpan!`);
+    this.renderSnapshots();
+  }
+
+  async handleRestoreSnapshot(snapshotId) {
+    const ok = await this.showConfirmDialog(
+      'Pulihkan Snapshot',
+      'Pulihkan troli belanja dari snapshot ini? Barang saat ini akan diganti.',
+      '🔄',
+      'Ya, Pulihkan',
+      false
+    );
+    if (ok) {
+      const success = Storage.restoreSnapshot(snapshotId);
+      if (success) {
+        SoundFeedback.success();
+        this.items = Storage.getItems();
+        this.budgetConfig = Storage.getBudgetConfig();
+        this.render();
+        this.showToast('🔄 Troli berhasil dipulihkan dari snapshot!');
+        this.closeSnapshotModal();
+      }
+    }
+  }
+
+  handleDeleteSnapshot(snapshotId) {
+    Storage.deleteSnapshot(snapshotId);
+    SoundFeedback.tap();
+    this.showToast('🗑️ Snapshot berhasil dihapus!');
+    this.renderSnapshots();
+  }
+
+  renderSnapshots() {
+    if (!this.snapshotListContainer) return;
+    const snapshots = Storage.getSnapshots();
+
+    if (this.snapshotCountBadge) {
+      this.snapshotCountBadge.textContent = `${snapshots.length} snapshot tersimpan`;
+    }
+
+    if (snapshots.length === 0) {
+      this.snapshotListContainer.innerHTML = `
+        <div style="text-align:center; padding:24px 12px; color:var(--text-muted); font-size:0.8rem;">
+          <div style="font-size:1.8rem; margin-bottom:6px;">📸</div>
+          <div>Belum ada snapshot tersimpan.</div>
+          <div style="font-size:0.72rem; margin-top:4px;">Ketik catatan dan tekan tombol <b>Buat Snapshot</b> di atas untuk menyimpan kondisi troli saat ini.</div>
+        </div>
+      `;
+      return;
+    }
+
+    this.snapshotListContainer.innerHTML = snapshots.map((s) => `
+      <div class="snapshot-card">
+        <div class="snapshot-header-row">
+          <span class="snapshot-title">
+            <span>📷</span> ${s.label}
+          </span>
+          <span class="snapshot-time">
+            ${new Date(s.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        <div class="snapshot-stats-row">
+          <div class="snapshot-stat-item">
+            <span class="snapshot-stat-label">Total Belanja</span>
+            <span class="snapshot-stat-val" style="color:var(--emerald-400);">Rp ${Number(s.totalSpent || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <div class="snapshot-stat-item">
+            <span class="snapshot-stat-label">Barang</span>
+            <span class="snapshot-stat-val">${s.itemCount || (s.items ? s.items.length : 0)} item (${s.inCartCount || 0} di troli)</span>
+          </div>
+          <div class="snapshot-stat-item">
+            <span class="snapshot-stat-label">Batas Budget</span>
+            <span class="snapshot-stat-val">Rp ${Number(s.budgetCap || 0).toLocaleString('id-ID')}</span>
+          </div>
+        </div>
+        <div class="snapshot-actions-row">
+          <button type="button" class="btn-snapshot-delete" data-snapshot-id="${s.id}">
+            Hapus
+          </button>
+          <button type="button" class="btn-snapshot-restore" data-snapshot-id="${s.id}">
+            🔄 Pulihkan Troli
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    // Pasang listener tombol restore & delete
+    this.snapshotListContainer.querySelectorAll('.btn-snapshot-restore').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.snapshotId;
+        this.handleRestoreSnapshot(id);
+      });
+    });
+
+    this.snapshotListContainer.querySelectorAll('.btn-snapshot-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.snapshotId;
+        this.handleDeleteSnapshot(id);
+      });
+    });
+  }
+
   openAuthModal() {
     const user = Auth.getCurrentUser();
     if (user) {
@@ -474,24 +766,8 @@ class SmartGroceryApp {
 
       const nameDisplay = document.getElementById('authUserNameDisplay');
       const emailDisplay = document.getElementById('authUserEmailDisplay');
-      const roleBadge = document.getElementById('authRoleBadge');
       if (nameDisplay) nameDisplay.textContent = user.name;
       if (emailDisplay) emailDisplay.textContent = user.email;
-
-      const isAdmin = user.role === 'admin' || user.email.toLowerCase() === SUPER_ADMIN_CREDENTIALS.email.toLowerCase();
-      if (roleBadge) {
-        if (isAdmin) {
-          roleBadge.className = 'budget-status-pill pill-warning';
-          roleBadge.innerHTML = '👑 Super Admin';
-        } else {
-          roleBadge.className = 'budget-status-pill pill-safe';
-          roleBadge.innerHTML = '🎓 Siswa';
-        }
-      }
-
-      if (this.btnOpenAdminFromAuth) {
-        this.btnOpenAdminFromAuth.style.display = isAdmin ? 'block' : 'none';
-      }
     } else {
       this.authLoggedInView.style.display = 'none';
       this.authFormView.style.display = 'block';
@@ -512,15 +788,15 @@ class SmartGroceryApp {
       if (cloudData) {
         if (cloudData.items && Array.isArray(cloudData.items)) {
           this.items = cloudData.items;
-          Storage.saveItems(this.items);
+          Storage.saveItems(this.items, false);
         }
         if (cloudData.budgetConfig) {
           this.budgetConfig = cloudData.budgetConfig;
-          Storage.saveBudgetConfig(this.budgetConfig);
+          Storage.saveBudgetConfig(this.budgetConfig, false);
         }
         if (cloudData.history && Array.isArray(cloudData.history)) {
           this.historySessions = cloudData.history;
-          Storage.saveHistory(this.historySessions);
+          Storage.saveHistory(this.historySessions, false);
         }
         this.render();
       } else {
@@ -528,32 +804,20 @@ class SmartGroceryApp {
       }
 
       this.authModal.classList.remove('open');
-
-      if (result.isAdmin) {
-        setTimeout(() => {
-          this.showToast('👑 Mode Super Admin Aktif! Ketuk ikon mahkota untuk Live Edit.');
-        }, 1200);
-      }
     } else {
       SoundFeedback.warning();
-      alert(result.message);
+      this.showToast(result.message, true);
     }
   }
 
   updateAuthUI() {
     const user = Auth.getCurrentUser();
-    const isAdmin = Auth.isAdmin();
-
-    // Toggle tombol mahkota Super Admin di header
-    if (this.adminPanelBtn) {
-      this.adminPanelBtn.style.display = isAdmin ? 'inline-flex' : 'none';
-    }
 
     // Ubah visual tombol akun di header
     if (this.userAuthBtn) {
       if (user) {
-        this.userAuthBtn.style.borderColor = isAdmin ? '#f59e0b' : 'var(--emerald-500)';
-        this.userAuthBtn.style.color = isAdmin ? '#fbbf24' : 'var(--emerald-400)';
+        this.userAuthBtn.style.borderColor = 'var(--emerald-500)';
+        this.userAuthBtn.style.color = 'var(--emerald-400)';
         this.userAuthBtn.title = `Akun: ${user.name} (${user.email})`;
       } else {
         this.userAuthBtn.style.borderColor = '';
@@ -564,20 +828,25 @@ class SmartGroceryApp {
   }
 
   syncCurrentDataWithCloud() {
-    const user = Auth.getCurrentUser();
-    if (!user) return;
-
+    const sessionMeta = Storage.getSessionMeta();
     const dataPayload = {
-      userId: user.id,
-      userEmail: user.email,
-      lastSynced: new Date().toISOString(),
+      sessionMeta,
       items: this.items,
       budgetConfig: this.budgetConfig,
       history: this.historySessions,
-      priceMemory: Storage.getPriceMemory()
+      priceMemory: Storage.getPriceMemory(),
+      lastSynced: new Date().toISOString()
     };
 
-    Auth.syncToCloud(user.id, dataPayload);
+    const user = Auth.getCurrentUser();
+    if (user) {
+      dataPayload.userId = user.id;
+      dataPayload.userEmail = user.email;
+      Auth.syncToCloud(user.id, dataPayload);
+    }
+
+    // Dual-Write ke Firebase Firestore collection 'grocery_sessions' (SRS F-06B)
+    FirebaseSync.syncToFirestore('active_session', dataPayload);
   }
 
   switchTab(tabId) {
@@ -692,6 +961,25 @@ class SmartGroceryApp {
     }
 
     this.safetyBufferTag.innerHTML = `${getIcon('tag')} Cadangan: ${Calculations.formatRupiah(this.budgetConfig.safetyBuffer)}`;
+
+    // Dynamic Budget Alert Banner (SRS F-05)
+    if (this.budgetWarningBanner) {
+      if (evaluation.isOverbudget) {
+        this.budgetWarningBanner.className = 'budget-alert-banner';
+        this.budgetWarningBanner.style.display = 'flex';
+        if (this.budgetWarningBannerText) {
+          this.budgetWarningBannerText.textContent = evaluation.statusMessage;
+        }
+      } else if (evaluation.usedPercentage >= 90) {
+        this.budgetWarningBanner.className = 'budget-alert-banner warning-banner';
+        this.budgetWarningBanner.style.display = 'flex';
+        if (this.budgetWarningBannerText) {
+          this.budgetWarningBannerText.textContent = evaluation.statusMessage;
+        }
+      } else {
+        this.budgetWarningBanner.style.display = 'none';
+      }
+    }
   }
 
   renderCategoryFilters() {
@@ -780,12 +1068,19 @@ class SmartGroceryApp {
 
     if (filteredItems.length === 0) {
       this.groceryListContainer.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">${getIcon('cart')}</div>
-          <h4 style="color:var(--text-main); font-size:1.05rem;">Troli Kosong</h4>
-          <p style="font-size:0.85rem;">Pilih barang dari menu <b>Tambah Cepat</b> di atas atau ketuk tombol <b>+ Tambah Barang</b> di bawah.</p>
+        <div class="empty-cart-state">
+          <div class="empty-cart-icon">${getIcon('cart')}</div>
+          <div class="empty-cart-title">Keranjang Belanja Kosong</div>
+          <p class="empty-cart-subtitle">Mulai tambahkan barang kebutuhan bulanan kamu menggunakan tombol di bawah atau pilih Cepat dari katalog di atas.</p>
+          <button id="btnEmptyAdd" type="button" class="btn-primary" style="margin-top:6px; font-size:0.8rem; padding:8px 16px;">
+            + Tambah Barang Sekarang
+          </button>
         </div>
       `;
+      const btnEmptyAdd = document.getElementById('btnEmptyAdd');
+      if (btnEmptyAdd) {
+        btnEmptyAdd.addEventListener('click', () => this.openItemModal());
+      }
       return;
     }
 
@@ -921,15 +1216,21 @@ class SmartGroceryApp {
 
     // Event: Stepper Minus
     const btnMinus = card.querySelector('.btn-minus');
-    btnMinus.addEventListener('click', () => {
+    btnMinus.addEventListener('click', async () => {
       if (item.qty > 1) {
         item.qty -= 1;
         SoundFeedback.tap();
         Storage.saveItems(this.items);
         this.render();
       } else {
-        // Jika 1 lalu ditekan minus, konfirmasi hapus
-        if (confirm(`Keluarkan ${item.name} dari troli/daftar?`)) {
+        // Jika 1 lalu ditekan minus, konfirmasi hapus via modal non-blocking
+        const ok = await this.showConfirmDialog(
+          'Hapus Barang',
+          `Kuantitas sudah 1. Ingin menghapus "${item.name}" dari troli belanja?`,
+          '🗑️',
+          'Ya, Hapus'
+        );
+        if (ok) {
           this.deleteItem(item.id);
         }
       }
@@ -944,8 +1245,14 @@ class SmartGroceryApp {
 
     // Event: Delete
     const btnDelete = card.querySelector('.btn-delete');
-    btnDelete.addEventListener('click', () => {
-      if (confirm(`Hapus "${item.name}" dari troli?`)) {
+    btnDelete.addEventListener('click', async () => {
+      const ok = await this.showConfirmDialog(
+        'Hapus Barang',
+        `Apakah kamu yakin ingin menghapus "${item.name}" dari keranjang belanja?`,
+        '🗑️',
+        'Ya, Hapus'
+      );
+      if (ok) {
         this.deleteItem(item.id);
       }
     });
@@ -1152,12 +1459,27 @@ class SmartGroceryApp {
   saveItemFromForm() {
     const name = this.inputName.value.trim();
     if (!name) {
-      alert('Nama barang wajib diisi!');
+      this.showToast('Nama produk wajib diisi!', true);
+      SoundFeedback.warning();
       return;
     }
 
-    const unitPrice = Math.max(0, Number(this.inputUnitPrice.value) || 0);
-    const qty = Math.max(1, Number(this.inputQty.value) || 1);
+    const rawUnitPrice = Number(this.inputUnitPrice.value);
+    if (isNaN(rawUnitPrice) || rawUnitPrice <= 0) {
+      this.showToast('Harga satuan harus lebih besar dari Rp 0!', true);
+      SoundFeedback.warning();
+      return;
+    }
+
+    const rawQty = Number(this.inputQty.value);
+    if (isNaN(rawQty) || rawQty <= 0) {
+      this.showToast('Kuantitas beli minimal 1!', true);
+      SoundFeedback.warning();
+      return;
+    }
+
+    const unitPrice = rawUnitPrice;
+    const qty = rawQty;
     const lastMonthPrice = Math.max(0, Number(this.inputLastMonthPrice.value) || 0);
     const disc1 = Math.max(0, Math.min(100, Number(this.inputDisc1.value) || 0));
     const disc2 = Math.max(0, Math.min(100, Number(this.inputDisc2.value) || 0));
@@ -1220,7 +1542,8 @@ class SmartGroceryApp {
   openCheckoutModal() {
     const inCartItems = this.items.filter((it) => it.inCart);
     if (inCartItems.length === 0) {
-      alert('Belum ada barang di dalam troli! Centang barang terlebih dahulu.');
+      this.showToast('Belum ada barang di dalam troli! Centang barang terlebih dahulu.', true);
+      SoundFeedback.warning();
       return;
     }
 
@@ -1287,13 +1610,18 @@ class SmartGroceryApp {
     this.checkoutModal.classList.add('open');
   }
 
-  finishAndArchiveShopping() {
+  async finishAndArchiveShopping() {
     const inCartItems = this.items.filter((it) => it.inCart);
     if (inCartItems.length === 0) return;
 
-    if (!confirm('Selesaikan belanja dan simpan sesi ini ke Riwayat Belanja?')) {
-      return;
-    }
+    const ok = await this.showConfirmDialog(
+      'Selesaikan Belanja',
+      'Selesaikan belanja dan simpan sesi ini ke Riwayat Belanja?',
+      '🧾',
+      'Ya, Simpan Riwayat',
+      false
+    );
+    if (!ok) return;
 
     const totalSpent = this.getTotalSpent();
     const evaluation = Calculations.evaluateBudgetSafety(

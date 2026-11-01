@@ -179,7 +179,7 @@ export const Calculations = {
     const usedPercentage = Number(((total / budget) * 100).toFixed(1));
     const effectiveRemaining = remaining - buffer;
 
-    // Status level evaluation
+    // Status level evaluation berdasarkan PRD SRS F-05
     if (total > budget) {
       const overAmount = total - budget;
       return {
@@ -193,27 +193,11 @@ export const Calculations = {
         isOverbudget: true,
         isNearLimit: true,
         themeClass: 'budget-danger',
-        statusTitle: '🚨 BAHAYA: OVERBUDGET!',
-        statusMessage: `Melebihi budget sebesar ${this.formatRupiah(overAmount)}! Keluarkan beberapa barang sebelum ke kasir.`,
+        statusTitle: '🚨 OVERBUDGET',
+        statusMessage: 'Total belanja melebihi batas saldo dompet! Kurangi kuantitas atau batalkan barang sekunder.',
         alertTone: 'danger'
       };
-    } else if (remaining <= buffer || usedPercentage >= 90) {
-      return {
-        status: 'critical',
-        level: 'critical',
-        usedPercentage,
-        rawPercentage: usedPercentage,
-        remainingBudget: remaining,
-        effectiveRemaining,
-        buffer,
-        isOverbudget: false,
-        isNearLimit: true,
-        themeClass: 'budget-critical',
-        statusTitle: '⚡ ZONA KRITIS (Hampir Habis)',
-        statusMessage: `Tersisa ${this.formatRupiah(remaining)}! Sudah menyentuh cadangan darurat ${this.formatRupiah(buffer)}.`,
-        alertTone: 'critical'
-      };
-    } else if (usedPercentage >= 75) {
+    } else if (usedPercentage >= 90 || remaining <= buffer) {
       return {
         status: 'warning',
         level: 'warning',
@@ -223,11 +207,27 @@ export const Calculations = {
         effectiveRemaining,
         buffer,
         isOverbudget: false,
-        isNearLimit: false,
+        isNearLimit: true,
         themeClass: 'budget-warning',
-        statusTitle: '⚠️ WASPADA BATAS ANGGARAN',
-        statusMessage: `Sudah terpakai ${usedPercentage}% dari uang saku. Sisa aman: ${this.formatRupiah(remaining)}.`,
+        statusTitle: '⚠️ KUNING WASPADA',
+        statusMessage: `Total belanja mencapai ${usedPercentage}% (>= 90% limit). Sisa aman: ${this.formatRupiah(remaining)}. Waspada mendekati batas dompet!`,
         alertTone: 'warning'
+      };
+    } else if (usedPercentage >= 75) {
+      return {
+        status: 'notice',
+        level: 'notice',
+        usedPercentage,
+        rawPercentage: usedPercentage,
+        remainingBudget: remaining,
+        effectiveRemaining,
+        buffer,
+        isOverbudget: false,
+        isNearLimit: false,
+        themeClass: 'budget-notice',
+        statusTitle: 'ℹ️ TERKONTROL',
+        statusMessage: `Sudah terpakai ${usedPercentage}% dari uang saku. Sisa saku: ${this.formatRupiah(remaining)}.`,
+        alertTone: 'notice'
       };
     } else {
       return {

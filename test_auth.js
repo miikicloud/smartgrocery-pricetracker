@@ -1,9 +1,9 @@
 /**
  * test_auth.js
- * Test Verifikasi Modul Auth, Super Admin Mikayla Subrata & Cloud Sync
+ * Test Verifikasi Modul Auth, Cloud Sync, dan Fitur onSnapshot
  */
 
-// Mock localStorage for Node.js environment
+// Mock localStorage for test environment
 const store = {};
 global.localStorage = {
   getItem: (key) => store[key] || null,
@@ -12,75 +12,78 @@ global.localStorage = {
   clear: () => { Object.keys(store).forEach((k) => delete store[k]); }
 };
 
-import { Auth, SUPER_ADMIN_CREDENTIALS, DEFAULT_APP_CONFIG } from './js/auth.js';
+import { Auth } from './js/auth.js';
+import { Storage } from './js/storage.js';
 
-console.log('--- TEST 1: CREDENTIALS SUPER ADMIN MIKAYLA SUBRATA ---');
-console.log('Admin Email:', SUPER_ADMIN_CREDENTIALS.email);
-console.log('Admin Password:', SUPER_ADMIN_CREDENTIALS.password);
-if (
-  SUPER_ADMIN_CREDENTIALS.email !== 'mikaylasubrata@mutiarabangsa.sch.id' ||
-  SUPER_ADMIN_CREDENTIALS.password !== 'Mikayla2'
-) {
-  throw new Error('Test 1 Gagal: Email atau Password Super Admin tidak sesuai spesifikasi!');
-}
-console.log('✓ Credentials Super Admin Sesuai!');
-
-console.log('--- TEST 2: LOGIN SUPER ADMIN ---');
-const adminLogin = Auth.login('mikaylasubrata@mutiarabangsa.sch.id', 'Mikayla2');
-console.log('Login result:', adminLogin);
-if (!adminLogin.success || !adminLogin.isAdmin || adminLogin.user.role !== 'admin') {
-  throw new Error('Test 2 Gagal: Login Super Admin gagal!');
-}
-if (!Auth.isAdmin()) {
-  throw new Error('Test 2 Gagal: Auth.isAdmin() harus bernilai true!');
-}
-console.log('✓ Login Super Admin Berhasil!');
-
-console.log('--- TEST 3: REJEKSI LOGIN JIKA PASSWORD SALAH ---');
-Auth.logout();
-const wrongPass = Auth.login('mikaylasubrata@mutiarabangsa.sch.id', 'SalahPassword');
-if (wrongPass.success) {
-  throw new Error('Test 3 Gagal: Seharusnya login ditolak jika password salah!');
-}
-console.log('✓ Rejeki Password Salah Berhasil!');
-
-console.log('--- TEST 4: REGISTRASI & LOGIN SISWA BIASA ---');
-const regResult = Auth.register('Siswa Budi', 'budi@sekolah.sch.id', 'rahasia123');
+console.log('--- TEST 1: REGISTRASI PENGGUNA BARU ---');
+const regResult = Auth.register('Budi Santoso', 'budi@smartgrocery.app', 'rahasia123');
 console.log('Register result:', regResult);
-if (!regResult.success || regResult.user.role !== 'user') {
-  throw new Error('Test 4 Gagal: Registrasi siswa biasa gagal!');
+if (!regResult.success || !regResult.user || regResult.user.email !== 'budi@smartgrocery.app') {
+  throw new Error('Test 1 Gagal: Registrasi pengguna gagal!');
 }
-if (Auth.isAdmin()) {
-  throw new Error('Test 4 Gagal: Siswa biasa tidak boleh menjadi admin!');
-}
-console.log('✓ Registrasi Siswa Berhasil!');
+console.log('✓ Registrasi Pengguna Berhasil!');
 
-console.log('--- TEST 5: CLOUD SYNC & LOAD ---');
+console.log('--- TEST 2: LOGIN PENGGUNA ---');
+const loginResult = Auth.login('budi@smartgrocery.app', 'rahasia123');
+console.log('Login result:', loginResult);
+if (!loginResult.success || !loginResult.user) {
+  throw new Error('Test 2 Gagal: Login pengguna gagal!');
+}
+console.log('✓ Login Pengguna Berhasil!');
+
+console.log('--- TEST 3: REJEKSI LOGIN PASSWORD SALAH ---');
+const wrongLogin = Auth.login('budi@smartgrocery.app', 'PasswordSalah');
+if (wrongLogin.success) {
+  throw new Error('Test 3 Gagal: Login dengan password salah harusnya ditolak!');
+}
+console.log('✓ Proteksi Password Salah Berhasil!');
+
+console.log('--- TEST 4: CLOUD SYNC & RESTORE DATA ---');
 const sampleCart = {
-  items: [{ id: '1', name: 'Tuna Kaleng', qty: 2, unitPrice: 10000 }],
+  items: [{ id: '1', name: 'Beras Ramos 5kg', qty: 1, unitPrice: 76000 }],
   budgetCap: 350000
 };
 Auth.syncToCloud(regResult.user.id, sampleCart);
 const loaded = Auth.loadFromCloud(regResult.user.id);
 console.log('Loaded from cloud:', loaded);
-if (!loaded || loaded.items[0].name !== 'Tuna Kaleng') {
-  throw new Error('Test 5 Gagal: Cloud sync tidak mengembalikan data yang benar!');
+if (!loaded || loaded.items[0].name !== 'Beras Ramos 5kg') {
+  throw new Error('Test 4 Gagal: Cloud sync tidak mengembalikan data yang benar!');
 }
 console.log('✓ Cloud Sync & Restore Berhasil!');
 
-console.log('--- TEST 6: LIVE APP CONFIG EDIT OLEH ADMIN ---');
-const newConfig = {
-  appName: 'Smart Grocery Mutiara Bangsa',
-  appSubtitle: 'Khusus Siswa & Asrama',
-  announcement: '📢 Promo Akhir Bulan Diskon 50% + 20%!',
-  accentColor: '#6366f1'
-};
-Auth.saveAppConfig(newConfig);
-const activeConfig = Auth.getAppConfig();
-console.log('Active App Config:', activeConfig);
-if (activeConfig.appName !== newConfig.appName || activeConfig.accentColor !== '#6366f1') {
-  throw new Error('Test 6 Gagal: App config tidak tersimpan dengan benar!');
-}
-console.log('✓ Live Edit App Config Berhasil!');
+console.log('--- TEST 5: FITUR ONSNAPSHOT REACTIVE LISTENER ---');
+let snapshotReceived = null;
+const unsubscribe = Storage.onSnapshot((snap) => {
+  snapshotReceived = snap;
+});
 
-console.log('\n>> SEMUA TEST SISTEM AKUN, SUPER ADMIN & CLOUD SYNC LULUS 100%! <<');
+if (!snapshotReceived || !snapshotReceived.items) {
+  throw new Error('Test 5 Gagal: onSnapshot tidak menerima initial snapshot!');
+}
+console.log('✓ Initial onSnapshot Diterima (Total Barang:', snapshotReceived.items.length, ')');
+
+// Trigger update
+Storage.saveItems([{ id: 'test_item_1', name: 'Mie Instan', unitPrice: 3500, qty: 5, inCart: true }]);
+if (!snapshotReceived || snapshotReceived.items[0].name !== 'Mie Instan') {
+  throw new Error('Test 5 Gagal: onSnapshot listener tidak terpanggil saat state berubah!');
+}
+console.log('✓ Reactive onSnapshot Berhasil Trigger saat Storage Berubah!');
+
+console.log('--- TEST 6: FITUR SNAPSHOT MANAGEMENT (CREATE & RESTORE) ---');
+const createdSnap = Storage.createSnapshot('Snapshot Tes Otomatis');
+console.log('Snapshot dibuat:', createdSnap.label, 'ID:', createdSnap.id);
+const snapshots = Storage.getSnapshots();
+if (snapshots.length === 0 || snapshots[0].id !== createdSnap.id) {
+  throw new Error('Test 6 Gagal: createSnapshot tidak menyimpan ke array snapshots!');
+}
+console.log('✓ Create Snapshot Berhasil!');
+
+// Restore snapshot test
+const restored = Storage.restoreSnapshot(createdSnap.id);
+if (!restored) {
+  throw new Error('Test 6 Gagal: restoreSnapshot gagal!');
+}
+console.log('✓ Restore Snapshot Berhasil!');
+
+unsubscribe();
+console.log('\n>> SEMUA TEST SISTEM AUTH, CLOUD SYNC & ONSNAPSHOT LULUS 100%! <<');

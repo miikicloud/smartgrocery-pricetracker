@@ -38,7 +38,7 @@
   --text-inverse: #090d16;
 
   /* Metric Variables */
-  --max-mobile-width: 430px;
+  --max-mobile-width: 480px;
   --bottom-nav-height: 72px;
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -197,8 +197,10 @@ html, body {
 }
 
 .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-full);
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
@@ -698,8 +700,10 @@ html, body {
 }
 
 .stepper-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-full);
   border: none;
   background: transparent;
@@ -1436,18 +1440,333 @@ html, body {
   color: #022c22;
 }
 
-/* Global Announcement Banner (Broadcast Admin) */
-.announcement-banner {
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
-  padding: 6px 10px;
+/* ==========================================================================
+   FITUR ONSNAPSHOT & REALTIME STATE MANAGEMENT
+   ========================================================================== */
+.live-snapshot-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--emerald-400);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: var(--radius-full);
+  padding: 3px 8px;
+  letter-spacing: 0.2px;
+  transition: var(--transition-smooth);
+  user-select: none;
+}
+
+.live-snapshot-badge .pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--emerald-400);
+  box-shadow: 0 0 8px var(--emerald-400);
+  display: inline-block;
+  animation: pulse-dot 1.8s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+.live-snapshot-badge.flash {
+  background: rgba(16, 185, 129, 0.35);
+  border-color: var(--emerald-400);
+  transform: scale(1.05);
+}
+
+/* Snapshot Card in Modal */
+.snapshot-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  font-size: 0.72rem;
-  font-weight: 600;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: var(--transition-smooth);
+}
+
+.snapshot-card:hover {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: var(--bg-card-hover);
+}
+
+.snapshot-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.snapshot-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--text-main);
   display: flex;
   align-items: center;
   gap: 6px;
-  line-height: 1.35;
 }
+
+.snapshot-time {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.snapshot-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-input);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.snapshot-stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.snapshot-stat-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.snapshot-stat-val {
+  font-weight: 700;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--text-main);
+}
+
+.snapshot-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.btn-snapshot-restore {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--emerald-400);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: var(--transition-smooth);
+}
+
+.btn-snapshot-restore:active {
+  background: var(--emerald-500);
+  color: #022c22;
+  transform: scale(0.95);
+}
+
+.btn-snapshot-delete {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: var(--rose-400);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-snapshot-delete:active {
+  background: var(--rose-500);
+  color: white;
+  transform: scale(0.95);
+}
+
+/* ==========================================================================
+   DYNAMIC BUDGET ALERT BANNER (SRS F-05)
+   ========================================================================== */
+.budget-alert-banner {
+  background: rgba(244, 63, 94, 0.18);
+  border: 1.5px solid var(--rose-500);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fecdd3;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  box-shadow: 0 4px 15px rgba(244, 63, 94, 0.25);
+  animation: pulse-danger-banner 2s infinite ease-in-out;
+}
+
+@keyframes pulse-danger-banner {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 14px 2px rgba(244, 63, 94, 0.5);
+  }
+}
+
+.budget-alert-banner.warning-banner {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: var(--amber-400);
+  color: #fef3c7;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
+  animation: none;
+}
+
+/* ==========================================================================
+   SESI BELANJA: TOKO GROSIR & TANGGAL TRANSAKSI (SRS F-01)
+   ========================================================================== */
+.session-store-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.session-store-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 8px;
+}
+
+.session-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.session-field-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--emerald-400);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.session-select,
+.session-date-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+.session-select:focus,
+.session-date-input:focus {
+  border-color: var(--emerald-500);
+  box-shadow: 0 0 0 2px var(--emerald-glow);
+}
+
+/* ==========================================================================
+   CUSTOM CONFIRMATION DIALOG MODAL (NON-BLOCKING SRS UX)
+   ========================================================================== */
+.confirm-dialog-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  width: 90%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  box-shadow: var(--shadow-floating);
+  animation: scale-up 0.2s ease-out;
+}
+
+.confirm-dialog-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.confirm-dialog-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.confirm-dialog-message {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* ==========================================================================
+   EMPTY CART STATE (SRS UX)
+   ========================================================================== */
+.empty-cart-state {
+  text-align: center;
+  padding: 36px 16px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin-top: 8px;
+}
+
+.empty-cart-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--emerald-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+}
+
+.empty-cart-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.empty-cart-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+
 

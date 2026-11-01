@@ -1,6 +1,6 @@
 /**
  * storage.js
- * Manajemen LocalStorage, Sinkronisasi State, dan Audio Feedback
+ * Manajemen LocalStorage, Reactive State Sync, Fitur onSnapshot & Audio Feedback
  */
 
 import { INITIAL_GROCERY_ITEMS, INITIAL_BUDGET_CONFIG, SAMPLE_HISTORY_SESSIONS } from './data.js';
@@ -9,10 +9,122 @@ const STORAGE_KEYS = {
   ITEMS: 'sg_grocery_items_v1',
   BUDGET: 'sg_budget_config_v1',
   HISTORY: 'sg_history_sessions_v1',
-  PRICE_MEMORY: 'sg_price_memory_v1'
+  PRICE_MEMORY: 'sg_price_memory_v1',
+  SNAPSHOTS: 'sg_cart_snapshots_v1',
+  SESSION_META: 'sg_session_meta_v1'
 };
 
 export const Storage = {
+  _listeners: new Set(),
+  _isListeningCrossTab: false,
+
+  /**
+   * Daftarkan listener real-time onSnapshot (Firebase-style reactive listener)
+   * Mengembalikan fungsi unsubscribe
+   * @param {Function} callback (snapshot) => void
+   * @returns {Function} unsubscribe function
+   */
+  onSnapshot(callback) {
+    if (typeof callback !== 'function') return () => {};
+
+    this._listeners.add(callback);
+    this._ensureCrossTabListener();
+
+    // Segera kirimkan snapshot pertama ke subscriber
+    try {
+      callback(this.getSnapshot('initial'));
+    } catch (e) {
+      console.warn('Error on initial onSnapshot callback:', e);
+    }
+
+    return () => {
+      this._listeners.delete(callback);
+    };
+  },
+
+  /**
+   * Ambil snapshot lengkap seluruh state aplikasi saat ini
+   * @param {string} source
+   * @returns {object} snapshot
+   */
+  getSnapshot(source = 'local') {
+    return {
+      sessionMeta: this.getSessionMeta(),
+      items: this.getItems(),
+      budgetConfig: this.getBudgetConfig(),
+      history: this.getHistory(),
+      priceMemory: this.getPriceMemory(),
+      snapshots: this.getSnapshots(),
+      timestamp: new Date().toISOString(),
+      source
+    };
+  },
+
+  /**
+   * Mengambil metadata sesi belanja aktif (Toko Grosir & Tanggal Belanja - SRS F-01)
+   * @returns {object}
+   */
+  getSessionMeta() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SESSION_META);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (e) {}
+    const defaultMeta = {
+      storeName: 'Lotte Mart Grocery - Puri Indah',
+      shoppingDate: new Date().toISOString().split('T')[0]
+    };
+    this.saveSessionMeta(defaultMeta, false);
+    return defaultMeta;
+  },
+
+  /**
+   * Menyimpan metadata sesi belanja
+   * @param {object} meta
+   * @param {boolean} notify
+   */
+  saveSessionMeta(meta, notify = true) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SESSION_META, JSON.stringify(meta));
+      if (notify) this._notifyListeners({ source: 'session_meta' });
+    } catch (e) {
+      console.error('Gagal menyimpan session meta:', e);
+    }
+  },
+
+  /**
+   * Broadcast perubahan state ke seluruh subscriber onSnapshot
+   * @param {object} meta
+   */
+  _notifyListeners(meta = {}) {
+    const source = meta.source || 'local';
+    const snapshot = this.getSnapshot(source);
+
+    this._listeners.forEach((listener) => {
+      try {
+        listener(snapshot);
+      } catch (e) {
+        console.error('Error invoking onSnapshot listener:', e);
+      }
+    });
+  },
+
+  /**
+   * Pasang listener window storage event untuk sinkronisasi realtime lintas tab / browser window
+   */
+  _ensureCrossTabListener() {
+    if (this._isListeningCrossTab) return;
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('storage', (e) => {
+        if (e.key && Object.values(STORAGE_KEYS).includes(e.key)) {
+          this._notifyListeners({ source: 'cross_tab', key: e.key });
+        }
+      });
+      this._isListeningCrossTab = true;
+    }
+  },
+
   /**
    * Mengambil daftar memori harga historis produk
    * @returns {object}
@@ -38,17 +150,19 @@ export const Storage = {
         updatedAt: new Date().toISOString()
       };
     });
-    this.savePriceMemory(memory);
+    this.savePriceMemory(memory, false);
     return memory;
   },
 
   /**
    * Menyimpan memori harga
    * @param {object} memory 
+   * @param {boolean} notify
    */
-  savePriceMemory(memory) {
+  savePriceMemory(memory, notify = true) {
     try {
       localStorage.setItem(STORAGE_KEYS.PRICE_MEMORY, JSON.stringify(memory));
+      if (notify) this._notifyListeners({ source: 'price_memory' });
     } catch (e) {
       console.error('Gagal menyimpan price memory:', e);
     }
@@ -73,7 +187,7 @@ export const Storage = {
       unit: unit || prev.unit || 'pcs',
       updatedAt: new Date().toISOString()
     };
-    this.savePriceMemory(memory);
+    this.savePriceMemory(memory, true);
   },
 
   /**
@@ -102,17 +216,19 @@ export const Storage = {
       console.warn('Gagal membaca items dari LocalStorage:', e);
     }
     // Jika belum ada, inisialisasi dengan data awal
-    this.saveItems(INITIAL_GROCERY_ITEMS);
+    this.saveItems(INITIAL_GROCERY_ITEMS, false);
     return [...INITIAL_GROCERY_ITEMS];
   },
 
   /**
    * Menyimpan daftar barang belanjaan
    * @param {Array} items 
+   * @param {boolean} notify
    */
-  saveItems(items) {
+  saveItems(items, notify = true) {
     try {
       localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
+      if (notify) this._notifyListeners({ source: 'items' });
     } catch (e) {
       console.error('Gagal menyimpan items ke LocalStorage:', e);
     }
@@ -131,17 +247,19 @@ export const Storage = {
     } catch (e) {
       console.warn('Gagal membaca budget dari LocalStorage:', e);
     }
-    this.saveBudgetConfig(INITIAL_BUDGET_CONFIG);
+    this.saveBudgetConfig(INITIAL_BUDGET_CONFIG, false);
     return { ...INITIAL_BUDGET_CONFIG };
   },
 
   /**
    * Menyimpan konfigurasi budget
    * @param {object} config 
+   * @param {boolean} notify
    */
-  saveBudgetConfig(config) {
+  saveBudgetConfig(config, notify = true) {
     try {
       localStorage.setItem(STORAGE_KEYS.BUDGET, JSON.stringify(config));
+      if (notify) this._notifyListeners({ source: 'budget' });
     } catch (e) {
       console.error('Gagal menyimpan budget config:', e);
     }
@@ -160,29 +278,140 @@ export const Storage = {
     } catch (e) {
       console.warn('Gagal membaca riwayat:', e);
     }
-    this.saveHistory(SAMPLE_HISTORY_SESSIONS);
+    this.saveHistory(SAMPLE_HISTORY_SESSIONS, false);
     return [...SAMPLE_HISTORY_SESSIONS];
   },
 
   /**
    * Menyimpan riwayat sesi belanja
    * @param {Array} history 
+   * @param {boolean} notify
    */
-  saveHistory(history) {
+  saveHistory(history, notify = true) {
     try {
       localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+      if (notify) this._notifyListeners({ source: 'history' });
     } catch (e) {
       console.error('Gagal menyimpan history:', e);
     }
   },
 
   /**
+   * Mengambil daftar snapshot tersimpan
+   * @returns {Array}
+   */
+  getSnapshots() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SNAPSHOTS);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (e) {
+      console.warn('Gagal membaca snapshots:', e);
+    }
+    return [];
+  },
+
+  /**
+   * Menyimpan daftar snapshot
+   * @param {Array} snapshots
+   * @param {boolean} notify
+   */
+  saveSnapshots(snapshots, notify = true) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(snapshots));
+      if (notify) this._notifyListeners({ source: 'snapshots' });
+    } catch (e) {
+      console.error('Gagal menyimpan snapshots:', e);
+    }
+  },
+
+  /**
+   * Mengambil / membuat Snapshot instan dari status belanja dan anggaran saat ini
+   * @param {string} customLabel
+   * @returns {object} snapshot baru
+   */
+  createSnapshot(customLabel = '') {
+    const items = this.getItems();
+    const budgetConfig = this.getBudgetConfig();
+    const now = new Date();
+
+    // Hitung total belanja troli saat ini
+    let totalSpent = 0;
+    items.forEach((item) => {
+      if (item.inCart) {
+        const qty = Number(item.qty) || 0;
+        const p1 = Number(item.unitPrice) * (1 - (Number(item.disc1) || 0) / 100);
+        const p2 = p1 * (1 - (Number(item.disc2) || 0) / 100);
+        const finalPrice = Math.max(0, p2 - (Number(item.fixedDiscount) || 0));
+        totalSpent += finalPrice * qty;
+      }
+    });
+
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+
+    const newSnapshot = {
+      id: `snap_${Date.now()}`,
+      label: customLabel.trim() || `Snapshot ${dateStr} • ${timeStr}`,
+      timestamp: now.toISOString(),
+      itemCount: items.length,
+      inCartCount: items.filter((i) => i.inCart).length,
+      totalSpent: Math.round(totalSpent),
+      budgetCap: budgetConfig.budgetCap,
+      remaining: Math.max(0, budgetConfig.budgetCap - totalSpent),
+      items: JSON.parse(JSON.stringify(items)),
+      budgetConfig: JSON.parse(JSON.stringify(budgetConfig))
+    };
+
+    const snapshots = this.getSnapshots();
+    snapshots.unshift(newSnapshot);
+    this.saveSnapshots(snapshots, true);
+
+    return newSnapshot;
+  },
+
+  /**
+   * Memulihkan (restore) state belanja dan anggaran dari Snapshot yang dipilih
+   * @param {string} snapshotId
+   * @returns {boolean}
+   */
+  restoreSnapshot(snapshotId) {
+    const snapshots = this.getSnapshots();
+    const target = snapshots.find((s) => s.id === snapshotId);
+    if (!target) return false;
+
+    if (target.items && Array.isArray(target.items)) {
+      this.saveItems(target.items, false);
+    }
+    if (target.budgetConfig) {
+      this.saveBudgetConfig(target.budgetConfig, false);
+    }
+
+    this._notifyListeners({ source: 'snapshot_restore', snapshotId });
+    return true;
+  },
+
+  /**
+   * Menghapus snapshot dari penyimpanan
+   * @param {string} snapshotId
+   * @returns {boolean}
+   */
+  deleteSnapshot(snapshotId) {
+    const snapshots = this.getSnapshots();
+    const filtered = snapshots.filter((s) => s.id !== snapshotId);
+    this.saveSnapshots(filtered, true);
+    return true;
+  },
+
+  /**
    * Reset data ke kondisi awal demo
    */
   resetToSampleData() {
-    this.saveItems(INITIAL_GROCERY_ITEMS);
-    this.saveBudgetConfig(INITIAL_BUDGET_CONFIG);
-    this.saveHistory(SAMPLE_HISTORY_SESSIONS);
+    this.saveItems(INITIAL_GROCERY_ITEMS, false);
+    this.saveBudgetConfig(INITIAL_BUDGET_CONFIG, false);
+    this.saveHistory(SAMPLE_HISTORY_SESSIONS, false);
+    this._notifyListeners({ source: 'reset' });
   }
 };
 
