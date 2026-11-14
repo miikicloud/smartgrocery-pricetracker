@@ -38,6 +38,25 @@ if (wrongLogin.success) {
 }
 console.log('✓ Proteksi Password Salah Berhasil!');
 
+console.log('--- TEST 3B: VALIDASI 1 EMAIL = 1 AKUN (DUPLIKAT DITOLAK) ---');
+const duplicateReg = Auth.register('Budi Kloning', 'budi@smartgrocery.app', 'passwordBaru');
+if (duplicateReg.success) {
+  throw new Error('Test 3B Gagal: Pendaftaran email duplikat harusnya ditolak!');
+}
+console.log('✓ Pendaftaran Email Duplikat Berhasil Ditolak:', duplicateReg.message);
+
+console.log('--- TEST 3C: FITUR GANTI AKUN (ACCOUNT SWITCHER) ---');
+const regUser2 = Auth.register('Siti Rahma', 'siti@smartgrocery.app', 'siti12345');
+const savedAccounts = Auth.getSavedAccounts();
+if (savedAccounts.length < 2) {
+  throw new Error('Test 3C Gagal: Saved accounts harus menyimpan minimal 2 akun!');
+}
+const switchRes = Auth.switchAccount(regResult.user.id);
+if (!switchRes.success || Auth.getCurrentUser().id !== regResult.user.id) {
+  throw new Error('Test 3C Gagal: Beralih akun gagal!');
+}
+console.log('✓ Account Switcher Berhasil Beralih Akun!');
+
 console.log('--- TEST 4: CLOUD SYNC & RESTORE DATA ---');
 const sampleCart = {
   items: [{ id: '1', name: 'Beras Ramos 5kg', qty: 1, unitPrice: 76000 }],

@@ -17,6 +17,36 @@ const STORAGE_KEYS = {
 export const Storage = {
   _listeners: new Set(),
   _isListeningCrossTab: false,
+  _activeUserId: null,
+
+  /**
+   * Poin 2: Mengatur User ID aktif untuk Isolasi Data per Akun
+   * @param {object|null} user 
+   */
+  setActiveUser(user) {
+    if (user && (user.id || user.email)) {
+      this._activeUserId = String(user.id || user.email).toLowerCase();
+    } else {
+      this._activeUserId = null;
+    }
+  },
+
+  getActiveUserId() {
+    return this._activeUserId;
+  },
+
+  /**
+   * Helper untuk mendapatkan kunci penyimpanan terisolasi per akun
+   * @param {string} baseKey 
+   * @returns {string}
+   */
+  _getKey(baseKey) {
+    if (this._activeUserId) {
+      const cleanUid = this._activeUserId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      return `${baseKey}_uid_${cleanUid}`;
+    }
+    return baseKey;
+  },
 
   /**
    * Daftarkan listener real-time onSnapshot (Firebase-style reactive listener)
@@ -66,7 +96,7 @@ export const Storage = {
    */
   getSessionMeta() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.SESSION_META);
+      const data = localStorage.getItem(this._getKey(STORAGE_KEYS.SESSION_META));
       if (data) {
         return JSON.parse(data);
       }
@@ -86,7 +116,7 @@ export const Storage = {
    */
   saveSessionMeta(meta, notify = true) {
     try {
-      localStorage.setItem(STORAGE_KEYS.SESSION_META, JSON.stringify(meta));
+      localStorage.setItem(this._getKey(STORAGE_KEYS.SESSION_META), JSON.stringify(meta));
       if (notify) this._notifyListeners({ source: 'session_meta' });
     } catch (e) {
       console.error('Gagal menyimpan session meta:', e);
@@ -208,14 +238,14 @@ export const Storage = {
    */
   getItems() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.ITEMS);
+      const data = localStorage.getItem(this._getKey(STORAGE_KEYS.ITEMS));
       if (data) {
         return JSON.parse(data);
       }
     } catch (e) {
       console.warn('Gagal membaca items dari LocalStorage:', e);
     }
-    // Jika belum ada, inisialisasi dengan data awal
+    // Jika belum ada data untuk akun ini, inisialisasi dengan data awal
     this.saveItems(INITIAL_GROCERY_ITEMS, false);
     return [...INITIAL_GROCERY_ITEMS];
   },
@@ -227,7 +257,7 @@ export const Storage = {
    */
   saveItems(items, notify = true) {
     try {
-      localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
+      localStorage.setItem(this._getKey(STORAGE_KEYS.ITEMS), JSON.stringify(items));
       if (notify) this._notifyListeners({ source: 'items' });
     } catch (e) {
       console.error('Gagal menyimpan items ke LocalStorage:', e);
@@ -240,7 +270,7 @@ export const Storage = {
    */
   getBudgetConfig() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.BUDGET);
+      const data = localStorage.getItem(this._getKey(STORAGE_KEYS.BUDGET));
       if (data) {
         return { ...INITIAL_BUDGET_CONFIG, ...JSON.parse(data) };
       }
@@ -258,7 +288,7 @@ export const Storage = {
    */
   saveBudgetConfig(config, notify = true) {
     try {
-      localStorage.setItem(STORAGE_KEYS.BUDGET, JSON.stringify(config));
+      localStorage.setItem(this._getKey(STORAGE_KEYS.BUDGET), JSON.stringify(config));
       if (notify) this._notifyListeners({ source: 'budget' });
     } catch (e) {
       console.error('Gagal menyimpan budget config:', e);
@@ -271,7 +301,7 @@ export const Storage = {
    */
   getHistory() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.HISTORY);
+      const data = localStorage.getItem(this._getKey(STORAGE_KEYS.HISTORY));
       if (data) {
         return JSON.parse(data);
       }
@@ -289,11 +319,24 @@ export const Storage = {
    */
   saveHistory(history, notify = true) {
     try {
-      localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+      localStorage.setItem(this._getKey(STORAGE_KEYS.HISTORY), JSON.stringify(history));
       if (notify) this._notifyListeners({ source: 'history' });
     } catch (e) {
       console.error('Gagal menyimpan history:', e);
     }
+  },
+
+  /**
+   * Menambahkan sesi belanja baru ke riwayat (Posisi paling atas / terbaru)
+   * @param {object} sessionData 
+   * @param {boolean} notify 
+   * @returns {Array}
+   */
+  addHistorySession(sessionData, notify = true) {
+    const history = this.getHistory();
+    history.unshift(sessionData);
+    this.saveHistory(history, notify);
+    return history;
   },
 
   /**
@@ -302,7 +345,7 @@ export const Storage = {
    */
   getSnapshots() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.SNAPSHOTS);
+      const data = localStorage.getItem(this._getKey(STORAGE_KEYS.SNAPSHOTS));
       if (data) {
         return JSON.parse(data);
       }
@@ -319,7 +362,7 @@ export const Storage = {
    */
   saveSnapshots(snapshots, notify = true) {
     try {
-      localStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(snapshots));
+      localStorage.setItem(this._getKey(STORAGE_KEYS.SNAPSHOTS), JSON.stringify(snapshots));
       if (notify) this._notifyListeners({ source: 'snapshots' });
     } catch (e) {
       console.error('Gagal menyimpan snapshots:', e);

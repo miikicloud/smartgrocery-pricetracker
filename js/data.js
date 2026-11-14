@@ -13,15 +13,179 @@ export const CATEGORIES = [
 ];
 
 export const UNITS = [
-  { id: 'pcs', label: 'pcs' },
+  { id: 'unit', label: 'unit' },
   { id: 'kg', label: 'kg' },
+  { id: 'gram', label: 'gram' },
   { id: 'liter', label: 'liter' },
+  { id: 'ml', label: 'ml' },
+  { id: 'pcs', label: 'pcs' },
   { id: 'pack', label: 'pack' },
+  { id: 'ikat', label: 'ikat' },
   { id: 'bungkus', label: 'bungkus' },
   { id: 'renteng', label: 'renteng' },
   { id: 'botol', label: 'botol' },
-  { id: 'kaleng', label: 'kaleng' }
+  { id: 'kaleng', label: 'kaleng' },
+  { id: 'dus', label: 'dus' },
+  { id: 'karung', label: 'karung' },
+  { id: 'kotak', label: 'kotak' }
 ];
+
+/**
+ * Pilihan Satuan Kontekstual Dinamis Berdasarkan Pencocokan Kata Kunci (Poin 1)
+ */
+export const CONTEXTUAL_UNITS_CONFIG = [
+  {
+    category: 'Bahan Pokok Kering',
+    keywords: ['beras', 'tepung', 'gula', 'garam', 'kopi bubuk', 'kacang', 'ketan', 'sagu', 'maizena', 'oat', 'gandum', 'chia', 'wijen'],
+    units: [
+      'karung/5kg',
+      'karung/10kg',
+      'karung/25kg',
+      'pack/1kg',
+      'pack/500g',
+      'pack/250g',
+      'kg',
+      'gram',
+      'ons'
+    ]
+  },
+  {
+    category: 'Barang Cair & Sabun',
+    keywords: ['sabun cair', 'sampo', 'shampo', 'deterjen cair', 'deterjen', 'pembersih lantai', 'pembersih', 'minyak goreng', 'minyak', 'kecap', 'saus', 'sirup', 'susu cair', 'cuci piring', 'pewangi', 'molto', 'downy', 'mama lemon', 'sunlight', 'wipol', 'karbol', 'cuka', 'madu', 'kecap asin', 'kecap manis'],
+    units: [
+      'botol/250 ml',
+      'botol/500 ml',
+      'botol/750 ml',
+      'botol/1 liter',
+      'pouch/450 ml',
+      'pouch/900 ml',
+      'jerigen/5 liter',
+      'galon/19 liter',
+      'liter',
+      'ml'
+    ]
+  },
+  {
+    category: 'Bumbu Instan & Kemasan Kecil',
+    keywords: ['penyedap rasa', 'penyedap', 'merica', 'ketumbar', 'kopi sachet', 'teh celup', 'sambal sachet', 'mi instan', 'mie instan', 'mie', 'indomie', 'sedap', 'sarimi', 'royco', 'masako', 'sasa', 'ajinomoto', 'lada', 'terasi', 'bumbu racik'],
+    units: [
+      'sachet/10g',
+      'sachet/20g',
+      'renceng/10 sachet',
+      'renceng/12 sachet',
+      'bungkus/85g',
+      'dus/40 bungkus',
+      'box/25 kantong',
+      'pcs'
+    ]
+  },
+  {
+    category: 'Sayuran, Buah & Bahan Segar',
+    keywords: ['bayam', 'kangkung', 'sawi', 'bawang merah', 'bawang putih', 'bawang', 'cabai', 'cabe', 'kentang', 'wortel', 'apel', 'jeruk', 'pisang', 'tomat', 'timun', 'brokoli', 'kol', 'kubis', 'buncis', 'seledri', 'daun bawang', 'jahe', 'kunyit', 'lengkuas', 'jeruk nipis', 'mangga', 'semangka', 'melon', 'pepaya'],
+    units: [
+      'ikat',
+      'ikat besar',
+      'ons',
+      '250 gram',
+      '500 gram',
+      'kg',
+      'sisir',
+      'buah',
+      'bungkus'
+    ]
+  },
+  {
+    category: 'Protein & Produk Dingin',
+    keywords: ['telur', 'ayam', 'daging sapi', 'daging', 'ikan', 'udang', 'tahu', 'tempe', 'keju', 'mentega', 'sosis', 'nugget', 'bakso', 'kornet', 'cumi', 'kepiting', 'fillet', 'butter', 'yoghurt'],
+    units: [
+      'butir',
+      'tray/30 butir',
+      'pack/10 butir',
+      'ekor',
+      'potong',
+      'papan',
+      'kotak/10 pcs',
+      'pack/250g',
+      'pack/500g',
+      'kg',
+      'gram'
+    ]
+  },
+  {
+    category: 'Minuman Kemasan',
+    keywords: ['air mineral', 'teh botol', 'soda', 'jus', 'susu uht', 'kopi botol', 'aqua', 'le minerale', 'pocari', 'coca', 'fanta', 'sprite', 'bear brand', 'milo', 'ultra milk', 'yakult', 'floridina', 'teh pucuk'],
+    units: [
+      'botol/330 ml',
+      'botol/600 ml',
+      'botol/1.5 liter',
+      'kaleng/250 ml',
+      'kaleng/330 ml',
+      'kotak/200 ml',
+      'kotak/1 liter',
+      'dus/24 botol',
+      'dus/48 gelas',
+      'pack/6 botol'
+    ]
+  },
+  {
+    category: 'Kebutuhan Rumah Tangga & Lainnya',
+    keywords: ['tisu', 'tissue', 'sabun batang', 'pasta gigi', 'odol', 'spons', 'plastik sampah', 'baterai', 'sikat gigi', 'obat nyamuk', 'baygon', 'pepsodent', 'close up', 'lifebuoy batang'],
+    units: [
+      'roll',
+      'pack/4 roll',
+      'pack/250 sheets',
+      'batang',
+      'tube/75g',
+      'tube/190g',
+      'pack/10 lembar',
+      'pcs',
+      'lusin',
+      'box'
+    ]
+  }
+];
+
+export const DEFAULT_UNITS = [
+  'pcs',
+  'bungkus',
+  'pack',
+  'kg',
+  'gram',
+  'liter',
+  'ml',
+  'box'
+];
+
+/**
+ * Logika pencocokan kata kunci untuk menentukan daftar opsi satuan dinamis
+ * @param {string} productName 
+ * @returns {Array<string>} Daftar opsi satuan kontekstual
+ */
+export function getContextualUnitsForProduct(productName = '') {
+  const clean = (productName || '').toLowerCase().trim();
+  if (!clean) return [...DEFAULT_UNITS];
+
+  // Cari kelompok kontekstual yang cocok
+  for (const group of CONTEXTUAL_UNITS_CONFIG) {
+    const isMatched = group.keywords.some((kw) => clean.includes(kw));
+    if (isMatched) {
+      let units = [...group.units];
+
+      // Aturan khusus kontekstual:
+      if (clean.includes('pisang')) {
+        units = ['sisir', ...units.filter((u) => u !== 'sisir')];
+      } else if (clean.includes('tempe')) {
+        units = ['papan', ...units.filter((u) => u !== 'papan')];
+      } else if (clean.includes('tahu')) {
+        units = ['kotak/10 pcs', ...units.filter((u) => u !== 'kotak/10 pcs')];
+      }
+
+      return units;
+    }
+  }
+
+  return [...DEFAULT_UNITS];
+}
 
 // Template barang belanjaan bulanan anak kos/rantau untuk fitur "Tambah Cepat"
 export const QUICK_CATALOG = [

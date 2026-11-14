@@ -46,6 +46,20 @@ class FirebaseRealtimeEngine {
     }
   }
 
+  unsubscribeSession() {
+    if (this.activeUnsubscribe) {
+      try {
+        this.activeUnsubscribe();
+      } catch (e) {}
+      this.activeUnsubscribe = null;
+    }
+  }
+
+  sanitizeSessionId(rawId) {
+    if (!rawId) return 'active_session';
+    return String(rawId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
   onStatusChange(callback) {
     if (typeof callback === 'function') {
       this.statusListeners.add(callback);

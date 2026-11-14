@@ -74,6 +74,180 @@
   --shadow-floating: 0 10px 25px -4px rgba(0, 0, 0, 0.12);
 }
 
+[data-theme="light"] .desktop-viewport-wrapper {
+  background: radial-gradient(circle at 50% 20%, #e2e8f0 0%, #cbd5e1 70%);
+}
+
+[data-theme="light"] .mobile-app-shell {
+  border-color: #cbd5e1;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--border-subtle);
+}
+
+[data-theme="light"] .auth-locked-mode #authModal.modal-overlay.open {
+  background: rgba(241, 245, 249, 0.94);
+}
+
+[data-theme="light"] .pwa-download-footer-card {
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.95), rgba(224, 242, 254, 0.85));
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+[data-theme="light"] .thermal-receipt-paper {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Light Theme Support untuk Box Barang (Grocery Item Cards) */
+[data-theme="light"] .grocery-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .grocery-card:active {
+  background: #f8fafc !important;
+}
+
+[data-theme="light"] .grocery-card.in-cart {
+  background: #ffffff !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.45) !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.09) !important;
+}
+
+[data-theme="light"] .grocery-card.in-cart .item-name {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .grocery-card.not-in-cart {
+  background: #f8fafc !important;
+  border: 1.5px dashed #cbd5e1 !important;
+  opacity: 0.95;
+}
+
+[data-theme="light"] .grocery-card.not-in-cart .item-name {
+  color: #1e293b !important;
+}
+
+[data-theme="light"] .grocery-card .item-category-unit {
+  color: #64748b;
+}
+
+[data-theme="light"] .grocery-card .category-tag {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+[data-theme="light"] .grocery-card .unit-conv-tag {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+[data-theme="light"] .grocery-card .cart-toggle-btn {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: transparent;
+}
+
+[data-theme="light"] .grocery-card.in-cart .cart-toggle-btn {
+  background: var(--emerald-500);
+  border-color: var(--emerald-500);
+  color: #ffffff;
+  box-shadow: 0 3px 10px var(--emerald-glow);
+}
+
+[data-theme="light"] .grocery-card .stepper-container {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .grocery-card .stepper-btn {
+  color: #0f172a;
+}
+
+[data-theme="light"] .grocery-card .stepper-value {
+  color: #0f172a;
+}
+
+[data-theme="light"] .grocery-card .item-unit-price-calc {
+  color: #64748b;
+}
+
+[data-theme="light"] .grocery-card .item-total-price {
+  color: #059669;
+}
+
+[data-theme="light"] .grocery-card .mini-action-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .grocery-card .mini-action-btn:active {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .session-store-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .session-select,
+[data-theme="light"] .session-date-input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .quick-chip {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .inline-add-item-btn {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: var(--emerald-600);
+  color: var(--emerald-600);
+}
+
+[data-theme="light"] .filter-pill {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+[data-theme="light"] .btn-recipes-shortcut {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.85), rgba(254, 226, 226, 0.7));
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+[data-theme="light"] .recipes-shortcut-title {
+  color: #b45309;
+}
+
+[data-theme="light"] .recipe-card-box {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .recipe-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .recipe-ingredients-block {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+[data-theme="light"] .fluctuation-preview-box {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
 /* Reset & Box Sizing */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -85,7 +259,7 @@
 html, body {
   width: 100%;
   height: 100%;
-  background-color: #030712;
+  background-color: var(--bg-app);
   color: var(--text-main);
   font-family: var(--font-family);
   font-size: 15px;
@@ -93,6 +267,11 @@ html, body {
   overflow-x: hidden;
   user-select: none;
   -webkit-font-smoothing: antialiased;
+}
+
+select option {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
 }
 
 /* Desktop Simulation Wrapper (Centering 430px Screen on Large Displays) */
@@ -546,7 +725,11 @@ html, body {
 }
 
 .grocery-card.in-cart {
-  border-color: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.3);
+  background: var(--bg-card);
+}
+
+body:not([data-theme="light"]) .grocery-card.in-cart {
   background: rgba(17, 24, 39, 0.6);
 }
 
@@ -608,7 +791,7 @@ html, body {
   word-break: break-word;
 }
 
-.grocery-card.in-cart .item-name {
+body:not([data-theme="light"]) .grocery-card.in-cart .item-name {
   color: #e2e8f0;
 }
 
@@ -1224,13 +1407,55 @@ html, body {
 }
 
 .tips-box {
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.32);
   border-radius: var(--radius-md);
-  padding: 12px 14px;
+  padding: 14px 16px;
   font-size: 0.8rem;
-  color: #c7d2fe;
+  line-height: 1.5;
+}
+
+.tips-box-title {
+  font-weight: 800;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fbbf24; /* Warna kuning emas cerah kontras tinggi di dark mode */
+  font-size: 0.84rem;
+  letter-spacing: 0.2px;
+}
+
+.tips-box-list {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.77rem;
+  color: #a5b4fc; /* Warna indigo cerah kontras (bukan putih) */
+}
+
+.tips-box-list li {
   line-height: 1.45;
+}
+
+/* Light Mode: Kontras Tinggi (Jauh dari Putih) */
+[data-theme="light"] .tips-box {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+}
+
+[data-theme="light"] .tips-box-title {
+  color: #312e81 !important; /* Indigo gelap pekat kontras tinggi */
+}
+
+[data-theme="light"] .tips-box-list {
+  color: #1e293b !important; /* Slate gelap pekat, kontras tinggi & nyaman dibaca */
+}
+
+[data-theme="light"] .tips-box-list li {
+  color: #1e293b !important;
 }
 
 /* ==========================================================================
@@ -1644,12 +1869,13 @@ html, body {
   display: grid;
   grid-template-columns: 1.5fr 1fr;
   gap: 8px;
+  align-items: flex-end;
 }
 
 .session-field-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .session-field-label {
@@ -1661,20 +1887,48 @@ html, body {
   gap: 4px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  min-height: 18px;
+  line-height: 1.2;
 }
 
 .session-select,
 .session-date-input {
   width: 100%;
+  height: 38px;
+  box-sizing: border-box;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   color: var(--text-main);
   border-radius: var(--radius-sm);
-  padding: 6px 8px;
+  padding: 0 10px;
   font-size: 0.78rem;
   font-family: inherit;
   outline: none;
   transition: var(--transition-smooth);
+}
+
+.session-select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+  padding-right: 26px;
+}
+
+.session-date-input {
+  cursor: pointer;
+}
+
+.session-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.6);
+}
+
+[data-theme="light"] .session-date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.2);
 }
 
 .session-select:focus,
@@ -1688,18 +1942,51 @@ html, body {
    ========================================================================== */
 .confirm-dialog-card {
   background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 24px 20px;
-  width: 90%;
-  max-width: 360px;
+  border-top: 1px solid var(--border-subtle);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding: 24px 20px 28px 20px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 12px;
-  box-shadow: var(--shadow-floating);
-  animation: scale-up 0.2s ease-out;
+  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.4);
+  animation: slide-up-confirm 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+@keyframes slide-up-confirm {
+  from {
+    transform: translateY(100%);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+[data-theme="light"] .confirm-dialog-card {
+  background: #ffffff;
+  border-top-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .confirm-dialog-title {
+  color: #0f172a;
+}
+
+[data-theme="light"] .confirm-dialog-message {
+  color: #475569;
 }
 
 .confirm-dialog-icon {
@@ -1767,6 +2054,496 @@ html, body {
   max-width: 280px;
   line-height: 1.4;
 }
+
+/* ==========================================================================
+   FITUR 1: KONVERSI SATUAN & UNIT BADGE
+   ========================================================================== */
+.unit-conv-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: var(--amber-400);
+  background: rgba(245, 158, 11, 0.12);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   FITUR 2: TOMBOL SELESAI BELANJA & STRUK DIGITAL (RECEIPT)
+   ========================================================================== */
+.btn-finish-shopping-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, var(--emerald-600), var(--emerald-500));
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);
+  transition: var(--transition-smooth);
+}
+
+.btn-finish-shopping-main:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.finish-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.finish-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  flex: 1;
+  margin-left: 12px;
+}
+
+.finish-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.finish-sub {
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+.finish-arrow {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+/* Thermal Paper Receipt Style */
+.thermal-receipt-paper {
+  background: #ffffff;
+  color: #1e293b;
+  font-family: 'Courier New', Courier, monospace;
+  padding: 18px 16px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  line-height: 1.35;
+  font-size: 0.8rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px dashed #cbd5e1;
+}
+
+.receipt-header-center {
+  text-align: center;
+  border-bottom: 1px dashed #94a3b8;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.receipt-store-title {
+  font-size: 0.98rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.receipt-meta-info {
+  font-size: 0.72rem;
+  color: #475569;
+  margin-top: 4px;
+}
+
+.receipt-item-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.receipt-item-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.receipt-item-subcalc {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.receipt-divider {
+  border-top: 1px dashed #94a3b8;
+  margin: 10px 0;
+}
+
+.receipt-summary-line {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+}
+
+.receipt-grand-total {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #0f172a;
+  border-top: 1px solid #0f172a;
+  border-bottom: 1px solid #0f172a;
+  padding: 6px 0;
+  margin: 8px 0;
+}
+
+.receipt-barcode-visual {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 0.68rem;
+  color: #475569;
+}
+
+/* Riwayat Belanja Card */
+.history-receipt-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: var(--transition-smooth);
+}
+
+.history-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+}
+
+.history-store-name {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.history-date-badge {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   FITUR 3 & 5: GERBANG LOGIN AWAL SEBELUM KE HOME PAGE (AUTH GATE WINDOW)
+   ========================================================================== */
+body.auth-locked-mode {
+  overflow: hidden !important;
+}
+
+body.auth-locked-mode #authModal.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  background: rgba(3, 7, 18, 0.96) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  display: flex !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+}
+
+[data-theme="light"].auth-locked-mode #authModal.modal-overlay {
+  background: rgba(241, 245, 249, 0.96) !important;
+}
+
+body.auth-locked-mode #authModal .bottom-sheet {
+  width: 100% !important;
+  max-width: 440px !important;
+  max-height: 92vh !important;
+  background: var(--bg-surface) !important;
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(16, 185, 129, 0.25) !important;
+  transform: translateY(0) !important;
+  padding: 24px 20px !important;
+  margin: auto !important;
+  overflow-y: auto !important;
+}
+
+body.auth-locked-mode #authModal .sheet-handle {
+  display: none !important;
+}
+
+body.auth-locked-mode #authModal #btnCloseAuth {
+  display: none !important;
+}
+
+.saved-account-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.saved-account-chip:hover,
+.saved-account-chip:active {
+  border-color: var(--emerald-500);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.saved-account-chip.active-account {
+  border-color: var(--emerald-400);
+  background: rgba(16, 185, 129, 0.14);
+}
+
+.account-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--emerald-500);
+  color: #022c22;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   FITUR 7: PWA DOWNLOAD FOOTER CARD
+   ========================================================================== */
+.pwa-download-footer-card {
+  margin: 20px 0 16px 0;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pwa-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pwa-footer-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.pwa-footer-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.pwa-footer-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.pwa-footer-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.pwa-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-pwa-download {
+  flex: 1.5;
+  padding: 10px 14px;
+  background: var(--sky-500);
+  color: #082f49;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: var(--transition-smooth);
+}
+
+.btn-pwa-download:active {
+  transform: scale(0.96);
+}
+
+.btn-pwa-offline {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   FITUR 8: IDE MENU MASAKAN CERDAS
+   ========================================================================== */
+.btn-recipes-shortcut {
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(239, 68, 68, 0.1));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-recipes-shortcut:active {
+  transform: scale(0.98);
+}
+
+.recipes-shortcut-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.recipes-shortcut-icon {
+  font-size: 1.5rem;
+}
+
+.recipes-shortcut-title {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--amber-400);
+}
+
+.recipes-shortcut-subtitle {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.recipe-badge-count {
+  background: var(--amber-500);
+  color: #1e1b4b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.recipe-card-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: var(--transition-smooth);
+}
+
+.recipe-card-box.recipe-can-cook {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), var(--bg-card));
+}
+
+.recipe-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.recipe-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recipe-emoji-big {
+  font-size: 1.6rem;
+}
+
+.recipe-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.recipe-meta-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.recipe-match-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+}
+
+.recipe-match-high {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--emerald-400);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.recipe-match-med {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--amber-400);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.recipe-match-low {
+  background: rgba(100, 116, 139, 0.2);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.recipe-ingredients-block {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  background: var(--bg-input);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-add-missing-ingredient {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--sky-400);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
 
 
 

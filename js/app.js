@@ -3,23 +3,31 @@
  * Controller Utama Smart Grocery & Budget Safety Tracker PWA
  */
 
-import { CATEGORIES, UNITS, QUICK_CATALOG } from './data.js';
+import { CATEGORIES, UNITS, QUICK_CATALOG, getContextualUnitsForProduct } from './data.js';
 import { Calculations } from './calculations.js';
 import { Storage, SoundFeedback } from './storage.js';
 import { getIcon } from './icons.js';
 import { Auth } from './auth.js';
 import { FirebaseSync } from './firebase.js';
+import { RecipeEngine } from './recipes.js';
 
 class SmartGroceryApp {
   constructor() {
     this.currentTab = 'belanja'; // 'belanja', 'riwayat', 'anggaran'
     this.selectedCategory = 'all';
+
+    // Poin 2: Inisialisasi Isolasi Data per Akun Pengguna Aktif
+    const initialUser = Auth.getCurrentUser();
+    Storage.setActiveUser(initialUser);
+
     this.items = Storage.getItems();
     this.budgetConfig = Storage.getBudgetConfig();
     this.historySessions = Storage.getHistory();
     this.editingItemId = null;
     this.deferredPrompt = null;
     this.unsubscribeSnapshot = null;
+    this.activeRecipeFilter = 'ready'; // 'ready' or 'all'
+    this.currentSessionDocId = initialUser ? ('user_session_' + FirebaseSync.sanitizeSessionId(initialUser.id || initialUser.email)) : 'guest_session';
 
     this.initElements();
     this.initSessionStore();
@@ -81,6 +89,9 @@ class SmartGroceryApp {
     this.inputName = document.getElementById('inputName');
     this.inputCategory = document.getElementById('inputCategory');
     this.inputUnit = document.getElementById('inputUnit');
+    this.customUnitGroup = document.getElementById('customUnitGroup');
+    this.inputCustomUnit = document.getElementById('inputCustomUnit');
+    this.inputUnitConversion = document.getElementById('inputUnitConversion');
     this.inputQty = document.getElementById('inputQty');
     this.inputUnitPrice = document.getElementById('inputUnitPrice');
     this.inputLastMonthPrice = document.getElementById('inputLastMonthPrice');
@@ -119,7 +130,26 @@ class SmartGroceryApp {
     this.toastBanner = document.getElementById('toastBanner');
     this.toastText = document.getElementById('toastText');
 
-    // Auth Elements
+    // Selesai Belanja & Struk Digital (Poin 2)
+    this.btnFinishShoppingMain = document.getElementById('btnFinishShoppingMain');
+    this.receiptModal = document.getElementById('receiptModal');
+    this.receiptPaperContainer = document.getElementById('receiptPaperContainer');
+    this.btnCloseReceipt = document.getElementById('btnCloseReceipt');
+    this.btnDismissReceipt = document.getElementById('btnDismissReceipt');
+    this.btnPrintReceipt = document.getElementById('btnPrintReceipt');
+
+    // Ide Menu Masakan Cerdas (Poin 8)
+    this.btnOpenRecipes = document.getElementById('btnOpenRecipes');
+    this.recipeMatchCountBadge = document.getElementById('recipeMatchCountBadge');
+    this.recipesModal = document.getElementById('recipesModal');
+    this.btnCloseRecipes = document.getElementById('btnCloseRecipes');
+    this.recipesListContainer = document.getElementById('recipesListContainer');
+    this.filterRecipeReady = document.getElementById('filterRecipeReady');
+    this.filterRecipeAll = document.getElementById('filterRecipeAll');
+    this.recipeReadyCount = document.getElementById('recipeReadyCount');
+    this.recipeAllCount = document.getElementById('recipeAllCount');
+
+    // Auth & Account Switcher Elements (Poin 3, 4, 5)
     this.userAuthBtn = document.getElementById('userAuthBtn');
     this.authModal = document.getElementById('authModal');
     this.btnCloseAuth = document.getElementById('btnCloseAuth');
@@ -135,6 +165,20 @@ class SmartGroceryApp {
     this.registerEmail = document.getElementById('registerEmail');
     this.registerPassword = document.getElementById('registerPassword');
     this.btnLogout = document.getElementById('btnLogout');
+    this.headerLogoutBtn = document.getElementById('headerLogoutBtn');
+    this.btnQuickDemoLogin = document.getElementById('btnQuickDemoLogin');
+    this.savedAccountsContainer = document.getElementById('savedAccountsContainer');
+    this.quickAccountsPrompt = document.getElementById('quickAccountsPrompt');
+    this.quickAccountsList = document.getElementById('quickAccountsList');
+    this.btnAddNewAccount = document.getElementById('btnAddNewAccount');
+
+    // Download & Install Aplikasi PWA (Poin 7)
+    this.btnDownloadPwaApp = document.getElementById('btnDownloadPwaApp');
+    this.btnDownloadOfflinePackage = document.getElementById('btnDownloadOfflinePackage');
+    this.pwaGuideModal = document.getElementById('pwaGuideModal');
+    this.btnClosePwaGuide = document.getElementById('btnClosePwaGuide');
+    this.btnTriggerNativeInstall = document.getElementById('btnTriggerNativeInstall');
+    this.btnDownloadHtmlBackup = document.getElementById('btnDownloadHtmlBackup');
   }
 
   attachEventListeners() {
@@ -164,6 +208,95 @@ class SmartGroceryApp {
     if (this.btnTakeSnapshot) {
       this.btnTakeSnapshot.addEventListener('click', () => {
         this.handleTakeSnapshot();
+      });
+    }
+
+    // Tombol Utama Selesai Belanja (Checkout & Cetak Struk - Poin 2)
+    if (this.btnFinishShoppingMain) {
+      this.btnFinishShoppingMain.addEventListener('click', () => {
+        this.promptFinishShopping();
+      });
+    }
+
+    // Modal Struk Digital Buttons
+    if (this.btnCloseReceipt) {
+      this.btnCloseReceipt.addEventListener('click', () => {
+        this.receiptModal.classList.remove('open');
+      });
+    }
+    if (this.btnDismissReceipt) {
+      this.btnDismissReceipt.addEventListener('click', () => {
+        this.receiptModal.classList.remove('open');
+      });
+    }
+    if (this.btnPrintReceipt) {
+      this.btnPrintReceipt.addEventListener('click', () => {
+        window.print();
+      });
+    }
+
+    // Ide Menu Masakan Cerdas (Poin 8)
+    if (this.btnOpenRecipes) {
+      this.btnOpenRecipes.addEventListener('click', () => {
+        SoundFeedback.tap();
+        this.openRecipesModal();
+      });
+    }
+    if (this.btnCloseRecipes) {
+      this.btnCloseRecipes.addEventListener('click', () => {
+        this.recipesModal.classList.remove('open');
+      });
+    }
+    if (this.filterRecipeReady) {
+      this.filterRecipeReady.addEventListener('click', () => {
+        this.activeRecipeFilter = 'ready';
+        this.filterRecipeReady.classList.add('active');
+        this.filterRecipeAll.classList.remove('active');
+        this.renderRecipesList();
+      });
+    }
+    if (this.filterRecipeAll) {
+      this.filterRecipeAll.addEventListener('click', () => {
+        this.activeRecipeFilter = 'all';
+        this.filterRecipeAll.classList.add('active');
+        this.filterRecipeReady.classList.remove('active');
+        this.renderRecipesList();
+      });
+    }
+
+    // Account Switcher Add New Account Button (Poin 5)
+    if (this.btnAddNewAccount) {
+      this.btnAddNewAccount.addEventListener('click', () => {
+        this.authLoggedInView.style.display = 'none';
+        this.authFormView.style.display = 'block';
+        this.tabAuthLogin.click();
+      });
+    }
+
+    // Download & Install PWA (Poin 7)
+    if (this.btnDownloadPwaApp) {
+      this.btnDownloadPwaApp.addEventListener('click', () => {
+        this.handlePwaInstallClick();
+      });
+    }
+    if (this.btnDownloadOfflinePackage) {
+      this.btnDownloadOfflinePackage.addEventListener('click', () => {
+        this.downloadStandaloneOfflineHtml();
+      });
+    }
+    if (this.btnClosePwaGuide) {
+      this.btnClosePwaGuide.addEventListener('click', () => {
+        this.pwaGuideModal.classList.remove('open');
+      });
+    }
+    if (this.btnTriggerNativeInstall) {
+      this.btnTriggerNativeInstall.addEventListener('click', () => {
+        this.handlePwaInstallClick();
+      });
+    }
+    if (this.btnDownloadHtmlBackup) {
+      this.btnDownloadHtmlBackup.addEventListener('click', () => {
+        this.downloadStandaloneOfflineHtml();
       });
     }
 
@@ -206,6 +339,16 @@ class SmartGroceryApp {
       });
     }
 
+    // Tombol 1-Klik Masuk Akun Demo Cepat
+    if (this.btnQuickDemoLogin) {
+      this.btnQuickDemoLogin.addEventListener('click', () => {
+        SoundFeedback.tap();
+        if (this.loginEmail) this.loginEmail.value = 'user@smartgrocery.app';
+        if (this.loginPassword) this.loginPassword.value = 'password123';
+        this.processLogin('user@smartgrocery.app', 'password123');
+      });
+    }
+
     // Register Form Submit
     if (this.registerForm) {
       this.registerForm.addEventListener('submit', (e) => {
@@ -218,8 +361,21 @@ class SmartGroceryApp {
         if (res.success) {
           SoundFeedback.success();
           this.showToast(res.message);
+          document.body.classList.remove('auth-locked-mode');
+          document.documentElement.classList.remove('auth-locked-mode');
+          if (this.btnCloseAuth) this.btnCloseAuth.style.display = 'inline-flex';
+
+          // Poin 2: Isolasi Data untuk Akun Baru Terdaftar
+          Storage.setActiveUser(res.user);
+          this.items = Storage.getItems();
+          this.budgetConfig = Storage.getBudgetConfig();
+          this.historySessions = Storage.getHistory();
+
           this.updateAuthUI();
+          this.setupUserRealtimeSession(res.user);
           this.syncCurrentDataWithCloud();
+          this.authModal.classList.remove('open');
+          this.render();
         } else {
           SoundFeedback.warning();
           this.showToast(res.message, true);
@@ -227,13 +383,33 @@ class SmartGroceryApp {
       });
     }
 
-    // Logout Button
+    // Logout Button di Modal Akun
     if (this.btnLogout) {
       this.btnLogout.addEventListener('click', () => {
         Auth.logout();
+        Storage.setActiveUser(null);
+        this.items = [];
+        this.historySessions = [];
         SoundFeedback.tap();
         this.showToast('Anda telah logout dari akun.');
         this.updateAuthUI();
+        this.render();
+        this.initAuth();
+      });
+    }
+
+    // Tombol Logout Langsung di Header (Kembali ke Gerbang Login)
+    if (this.headerLogoutBtn) {
+      this.headerLogoutBtn.addEventListener('click', () => {
+        SoundFeedback.tap();
+        Auth.logout();
+        Storage.setActiveUser(null);
+        this.items = [];
+        this.historySessions = [];
+        this.showToast('Keluar akun. Gerbang Login aktif.');
+        this.updateAuthUI();
+        this.render();
+        this.initAuth();
       });
     }
 
@@ -306,11 +482,35 @@ class SmartGroceryApp {
       });
     }
 
-    // Auto-complete & prefill when typing product name
+    // Auto-complete, prefill & dynamic contextual units when typing product name (Poin 1)
     this.inputName.addEventListener('input', () => {
-      this.handleProductNameAutoFill(this.inputName.value.trim());
+      const typed = this.inputName.value.trim();
+      this.handleProductNameAutoFill(typed);
+      this.updateContextualUnits(typed);
       this.updateModalLivePreview();
     });
+
+    // Custom unit dropdown toggle (Poin 1)
+    if (this.inputUnit) {
+      this.inputUnit.addEventListener('change', () => {
+        if (this.inputUnit.value === '__custom__') {
+          if (this.customUnitGroup) this.customUnitGroup.style.display = 'block';
+          if (this.inputCustomUnit) setTimeout(() => this.inputCustomUnit.focus(), 100);
+        } else {
+          if (this.customUnitGroup) this.customUnitGroup.style.display = 'none';
+        }
+      });
+    }
+
+    // Validasi Kolom Numerik Ketat dengan Peringatan Instan (Minus, Simbol, Huruf ditolak)
+    this.attachNumericValidationWithWarning(this.inputQty, 'Kuantitas', true);
+    this.attachNumericValidationWithWarning(this.inputUnitPrice, 'Harga Satuan', false);
+    this.attachNumericValidationWithWarning(this.inputLastMonthPrice, 'Harga Bulan Lalu', false);
+    this.attachNumericValidationWithWarning(this.inputDisc1, 'Diskon Utama (%)', true);
+    this.attachNumericValidationWithWarning(this.inputDisc2, 'Diskon Tambahan (%)', true);
+    this.attachNumericValidationWithWarning(this.inputFixedDiscount, 'Potongan Diskon (Rp)', false);
+    this.attachNumericValidationWithWarning(this.inputBudgetCap, 'Batas Anggaran', false);
+    this.attachNumericValidationWithWarning(this.inputSafetyBuffer, 'Dana Cadangan', false);
 
     // Quick Discount Presets in Modal
     const discChips = document.querySelectorAll('.disc-preset-chip');
@@ -471,6 +671,133 @@ class SmartGroceryApp {
   }
 
   // ==========================================================================
+  // FITUR VALIDASI INPUT ANGKA KETAT DENGAN PERINGATAN INSTAN
+  // Munculkan peringatan apabila karakter berupa minus (-), simbol, spasi, atau huruf
+  // ==========================================================================
+
+  attachNumericValidationWithWarning(inputEl, fieldLabel, allowDecimal = false) {
+    if (!inputEl) return;
+
+    let lastWarningTime = 0;
+    const triggerWarning = (msg) => {
+      const now = Date.now();
+      if (now - lastWarningTime > 1200) {
+        lastWarningTime = now;
+        SoundFeedback.warning();
+        this.showToast(msg, true);
+        inputEl.style.borderColor = 'var(--rose-500)';
+        inputEl.style.boxShadow = '0 0 0 2px var(--rose-glow)';
+        setTimeout(() => {
+          inputEl.style.borderColor = '';
+          inputEl.style.boxShadow = '';
+        }, 1200);
+      }
+    };
+
+    inputEl.addEventListener('keydown', (e) => {
+      // 1. Tombol kontrol & navigasi standar
+      const controlKeys = [
+        'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
+        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'Home', 'End'
+      ];
+      if (controlKeys.includes(e.key) || e.ctrlKey || e.metaKey) {
+        return;
+      }
+
+      // 2. Tombol minus (-)
+      if (e.key === '-' || e.key === 'Subtract') {
+        e.preventDefault();
+        triggerWarning(`⚠️ Kolom ${fieldLabel} tidak boleh bernilai minus/negatif! Hanya menerima angka positif.`);
+        return;
+      }
+
+      // 3. Spasi
+      if (e.key === ' ') {
+        e.preventDefault();
+        triggerWarning(`⚠️ Kolom ${fieldLabel} tidak boleh mengandung spasi!`);
+        return;
+      }
+
+      // 4. Huruf (a-z, A-Z)
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        e.preventDefault();
+        triggerWarning(`⚠️ Kolom ${fieldLabel} hanya menerima angka, tidak boleh berisi huruf "${e.key}"!`);
+        return;
+      }
+
+      // 5. Tanda Titik Desimal (.) atau Koma (,)
+      if (e.key === '.' || e.key === ',') {
+        if (!allowDecimal) {
+          e.preventDefault();
+          triggerWarning(`⚠️ Kolom ${fieldLabel} hanya menerima angka bulat (tanpa desimal/simbol)!`);
+          return;
+        }
+        if (inputEl.value.includes('.')) {
+          e.preventDefault();
+          triggerWarning(`⚠️ Kolom ${fieldLabel} hanya boleh memiliki satu tanda titik desimal!`);
+          return;
+        }
+        return; // Izinkan 1 tanda titik
+      }
+
+      // 6. Simbol-simbol lainnya (+, *, /, @, #, $, %, dll)
+      if (!/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        triggerWarning(`⚠️ Kolom ${fieldLabel} tidak boleh mengandung simbol "${e.key}"! Hanya menerima angka.`);
+        return;
+      }
+    });
+
+    // Event input untuk menangani paste / mobile keyboard
+    inputEl.addEventListener('input', () => {
+      const original = inputEl.value;
+      if (!original) return;
+
+      let sanitized = original;
+      let hasIllegal = false;
+      let reason = '';
+
+      if (sanitized.includes('-')) {
+        hasIllegal = true;
+        reason = 'simbol minus (-)';
+      } else if (/[a-zA-Z]/.test(sanitized)) {
+        hasIllegal = true;
+        reason = 'huruf';
+      } else if (allowDecimal ? /[^0-9.]/.test(sanitized) : /[^0-9]/.test(sanitized)) {
+        hasIllegal = true;
+        reason = 'simbol khusus';
+      }
+
+      if (allowDecimal) {
+        sanitized = sanitized.replace(/[^0-9.]/g, '');
+        const parts = sanitized.split('.');
+        if (parts.length > 2) {
+          sanitized = parts[0] + '.' + parts.slice(1).join('');
+          hasIllegal = true;
+          reason = 'titik ganda';
+        }
+      } else {
+        sanitized = sanitized.replace(/[^0-9]/g, '');
+      }
+
+      if (hasIllegal && sanitized !== original) {
+        inputEl.value = sanitized;
+        triggerWarning(`⚠️ Kolom ${fieldLabel} hanya boleh berisi angka! Karakter ${reason} otomatis dibersihkan.`);
+      }
+    });
+
+    // Event blur untuk validasi nilai jika kosong/minus
+    inputEl.addEventListener('blur', () => {
+      const val = Number(inputEl.value);
+      if (inputEl.value !== '' && (isNaN(val) || val < 0)) {
+        inputEl.value = allowDecimal ? '1' : '0';
+        triggerWarning(`⚠️ Nilai ${fieldLabel} tidak valid, otomatis disesuaikan.`);
+      }
+    });
+  }
+
+  // ==========================================================================
   // NON-BLOCKING CONFIRMATION DIALOG (SRS UX)
   // ==========================================================================
 
@@ -511,9 +838,29 @@ class SmartGroceryApp {
   initAuth() {
     this.updateAuthUI();
 
-    // Jika user login, pulihkan data dari cloud jika tersedia
     const user = Auth.getCurrentUser();
-    if (user) {
+    // Poin 2: Isolasi Data Pengguna Aktif
+    Storage.setActiveUser(user);
+
+    if (!user) {
+      // POIN 2: Gerbang Autentikasi Awal - Kunci halaman utama sebelum user login
+      document.body.classList.add('auth-locked-mode');
+      document.documentElement.classList.add('auth-locked-mode');
+      if (this.btnCloseAuth) this.btnCloseAuth.style.display = 'none';
+      const titleElem = document.getElementById('authModalTitle');
+      if (titleElem) titleElem.textContent = 'Silakan Masuk atau Buat Akun untuk Memulai';
+      this.openAuthModal(true);
+    } else {
+      document.body.classList.remove('auth-locked-mode');
+      document.documentElement.classList.remove('auth-locked-mode');
+      if (this.btnCloseAuth) this.btnCloseAuth.style.display = 'inline-flex';
+
+      // Muat data terisolasi untuk akun ini
+      this.items = Storage.getItems();
+      this.budgetConfig = Storage.getBudgetConfig();
+      this.historySessions = Storage.getHistory();
+
+      // Pulihkan data cloud jika tersedia
       const cloudData = Auth.loadFromCloud(user.id);
       if (cloudData) {
         if (cloudData.items && Array.isArray(cloudData.items)) {
@@ -533,14 +880,13 @@ class SmartGroceryApp {
             localStorage.setItem('sg_price_memory_v1', JSON.stringify(cloudData.priceMemory));
           } catch (e) {}
         }
-      } else {
-        this.syncCurrentDataWithCloud();
       }
+      this.setupUserRealtimeSession(user);
     }
   }
 
   // ==========================================================================
-  // FITUR ONSNAPSHOT & REALTIME STATE SYNCHRONIZER (SRS F-06B)
+  // FITUR ONSNAPSHOT & REALTIME STATE SYNCHRONIZER (POIN 6 - HP & PC MULTI-DEVICE)
   // ==========================================================================
 
   initSnapshotListener() {
@@ -586,8 +932,25 @@ class SmartGroceryApp {
       }
     });
 
-    // 3. Daftarkan listener Firestore onSnapshot (SRS F-06B Multi-Device Realtime)
-    FirebaseSync.subscribeSession('active_session', (cloudData, meta) => {
+    // Inisialisasi realtime session pengguna aktif
+    const user = Auth.getCurrentUser();
+    this.setupUserRealtimeSession(user);
+  }
+
+  /**
+   * Poin 6: Setup Listener onSnapshot Firestore terikat ke Akun Pengguna Aktif
+   * Ketika user login dengan akun sama di HP & Laptop, data langsung berubah tanpa refresh!
+   * @param {object|null} user 
+   */
+  setupUserRealtimeSession(user) {
+    FirebaseSync.unsubscribeSession();
+    const sessionDocId = user 
+      ? ('user_session_' + FirebaseSync.sanitizeSessionId(user.email || user.id))
+      : 'guest_session';
+
+    this.currentSessionDocId = sessionDocId;
+
+    FirebaseSync.subscribeSession(sessionDocId, (cloudData, meta) => {
       if (!cloudData) return;
       let hasUpdate = false;
 
@@ -620,12 +983,11 @@ class SmartGroceryApp {
       if (cloudData.history && Array.isArray(cloudData.history)) {
         this.historySessions = cloudData.history;
         Storage.saveHistory(this.historySessions, false);
+        hasUpdate = true;
       }
 
       if (hasUpdate) {
         this.render();
-        const originText = meta && meta.isFromOtherDevice ? 'dari perangkat lain' : 'secara realtime';
-        this.showToast(`🟢 Data ter-update ${originText} via onSnapshot!`);
         this.flashSnapshotBadge();
       }
     });
@@ -758,9 +1120,11 @@ class SmartGroceryApp {
     });
   }
 
-  openAuthModal() {
+  openAuthModal(isLocked = false) {
     const user = Auth.getCurrentUser();
-    if (user) {
+    this.renderSavedAccounts();
+
+    if (user && !isLocked) {
       this.authLoggedInView.style.display = 'flex';
       this.authFormView.style.display = 'none';
 
@@ -773,7 +1137,131 @@ class SmartGroceryApp {
       this.authFormView.style.display = 'block';
     }
 
+    if (this.btnCloseAuth) {
+      this.btnCloseAuth.style.display = isLocked ? 'none' : 'inline-flex';
+    }
+
     this.authModal.classList.add('open');
+  }
+
+  renderSavedAccounts() {
+    const saved = Auth.getSavedAccounts();
+    const currentUser = Auth.getCurrentUser();
+
+    // 1. Render di dalam profil saat login
+    if (this.savedAccountsContainer) {
+      if (saved.length === 0) {
+        this.savedAccountsContainer.innerHTML = `
+          <div style="font-size:0.72rem; color:var(--text-muted); text-align:center; padding:8px 0;">
+            Belum ada akun lain tersimpan di perangkat ini.
+          </div>
+        `;
+      } else {
+        this.savedAccountsContainer.innerHTML = saved.map((acc) => {
+          const isCurrent = currentUser && (currentUser.id === acc.id || currentUser.email === acc.email);
+          const initial = (acc.name || 'U').charAt(0).toUpperCase();
+          return `
+            <div class="saved-account-chip ${isCurrent ? 'active-account' : ''}" data-account-id="${acc.id}">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="account-avatar-circle">${initial}</div>
+                <div>
+                  <div style="font-weight:700; font-size:0.82rem; color:var(--text-main);">
+                    ${acc.name} ${isCurrent ? '<span style="color:var(--emerald-400); font-size:0.7rem;">(Aktif)</span>' : ''}
+                  </div>
+                  <div style="font-size:0.7rem; color:var(--text-muted);">${acc.email}</div>
+                </div>
+              </div>
+              <div>
+                ${!isCurrent ? `
+                  <button type="button" class="btn-switch-to-acc" data-account-id="${acc.id}" style="background:var(--emerald-500); color:#022c22; border:none; border-radius:var(--radius-sm); font-size:0.7rem; font-weight:800; padding:4px 8px; cursor:pointer;">
+                    Ganti
+                  </button>
+                ` : '<span>✓</span>'}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        this.savedAccountsContainer.querySelectorAll('.btn-switch-to-acc').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.dataset.accountId;
+            this.handleSwitchAccount(id);
+          });
+        });
+      }
+    }
+
+    // 2. Render quick prompt di form login jika ada akun tersimpan
+    if (this.quickAccountsPrompt && this.quickAccountsList) {
+      if (saved.length > 0 && !currentUser) {
+        this.quickAccountsPrompt.style.display = 'block';
+        this.quickAccountsList.innerHTML = saved.map((acc) => {
+          const initial = (acc.name || 'U').charAt(0).toUpperCase();
+          return `
+            <button type="button" class="btn-quick-switch" data-account-id="${acc.id}" style="width:100%; display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); border:1px solid var(--border-subtle); padding:6px 10px; border-radius:var(--radius-md); text-align:left; cursor:pointer;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="account-avatar-circle" style="width:26px; height:26px; font-size:0.75rem;">${initial}</div>
+                <div>
+                  <div style="font-size:0.78rem; font-weight:700; color:var(--text-main);">${acc.name}</div>
+                  <div style="font-size:0.68rem; color:var(--text-muted);">${acc.email}</div>
+                </div>
+              </div>
+              <span style="font-size:0.72rem; color:var(--emerald-400); font-weight:700;">Masuk Instan →</span>
+            </button>
+          `;
+        }).join('');
+
+        this.quickAccountsList.querySelectorAll('.btn-quick-switch').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.dataset.accountId;
+            this.handleSwitchAccount(id);
+          });
+        });
+      } else {
+        this.quickAccountsPrompt.style.display = 'none';
+      }
+    }
+  }
+
+  handleSwitchAccount(userId) {
+    const res = Auth.switchAccount(userId);
+    if (res.success) {
+      SoundFeedback.success();
+      this.showToast(`Beralih ke akun ${res.user.name}`);
+      document.body.classList.remove('auth-locked-mode');
+      document.documentElement.classList.remove('auth-locked-mode');
+      if (this.btnCloseAuth) this.btnCloseAuth.style.display = 'inline-flex';
+
+      // Poin 2: Isolasi Data Pengguna Aktif
+      Storage.setActiveUser(res.user);
+      this.items = Storage.getItems();
+      this.budgetConfig = Storage.getBudgetConfig();
+      this.historySessions = Storage.getHistory();
+
+      // Load data cloud akun baru
+      const cloudData = Auth.loadFromCloud(res.user.id);
+      if (cloudData) {
+        if (cloudData.items && Array.isArray(cloudData.items)) {
+          this.items = cloudData.items;
+          Storage.saveItems(this.items, false);
+        }
+        if (cloudData.budgetConfig) {
+          this.budgetConfig = cloudData.budgetConfig;
+          Storage.saveBudgetConfig(this.budgetConfig, false);
+        }
+        if (cloudData.history && Array.isArray(cloudData.history)) {
+          this.historySessions = cloudData.history;
+          Storage.saveHistory(this.historySessions, false);
+        }
+      }
+
+      this.updateAuthUI();
+      this.setupUserRealtimeSession(res.user);
+      this.render();
+      this.authModal.classList.remove('open');
+    } else {
+      this.showToast(res.message, true);
+    }
   }
 
   processLogin(email, password) {
@@ -781,6 +1269,16 @@ class SmartGroceryApp {
     if (result.success) {
       SoundFeedback.success();
       this.showToast(result.message);
+      document.body.classList.remove('auth-locked-mode');
+      document.documentElement.classList.remove('auth-locked-mode');
+      if (this.btnCloseAuth) this.btnCloseAuth.style.display = 'inline-flex';
+
+      // Poin 2: Isolasi Data Pengguna Aktif
+      Storage.setActiveUser(result.user);
+      this.items = Storage.getItems();
+      this.budgetConfig = Storage.getBudgetConfig();
+      this.historySessions = Storage.getHistory();
+
       this.updateAuthUI();
 
       // Sinkronkan data cloud pengguna
@@ -798,11 +1296,12 @@ class SmartGroceryApp {
           this.historySessions = cloudData.history;
           Storage.saveHistory(this.historySessions, false);
         }
-        this.render();
       } else {
         this.syncCurrentDataWithCloud();
       }
 
+      this.setupUserRealtimeSession(result.user);
+      this.render();
       this.authModal.classList.remove('open');
     } else {
       SoundFeedback.warning();
@@ -818,11 +1317,18 @@ class SmartGroceryApp {
       if (user) {
         this.userAuthBtn.style.borderColor = 'var(--emerald-500)';
         this.userAuthBtn.style.color = 'var(--emerald-400)';
-        this.userAuthBtn.title = `Akun: ${user.name} (${user.email})`;
+        this.userAuthBtn.title = `Akun: ${user.name} (${user.email}) - Klik untuk Ganti Akun`;
       } else {
         this.userAuthBtn.style.borderColor = '';
         this.userAuthBtn.style.color = '';
         this.userAuthBtn.title = 'Akun & Cloud Sync';
+      }
+    }
+
+    if (this.headerLogoutBtn) {
+      this.headerLogoutBtn.style.display = user ? 'inline-flex' : 'none';
+      if (user) {
+        this.headerLogoutBtn.title = `Logout dari ${user.name} (Buka Gerbang Login)`;
       }
     }
   }
@@ -845,8 +1351,9 @@ class SmartGroceryApp {
       Auth.syncToCloud(user.id, dataPayload);
     }
 
-    // Dual-Write ke Firebase Firestore collection 'grocery_sessions' (SRS F-06B)
-    FirebaseSync.syncToFirestore('active_session', dataPayload);
+    // Dual-Write ke Firebase Firestore collection 'grocery_sessions' (Poin 6)
+    const docId = this.currentSessionDocId || 'active_session';
+    FirebaseSync.syncToFirestore(docId, dataPayload);
   }
 
   switchTab(tabId) {
@@ -885,6 +1392,7 @@ class SmartGroceryApp {
     this.renderQuickCatalog();
     this.renderGroceryList();
     this.updateCartBadge();
+    this.updateRecipeMatchBadge();
   }
 
   updateCartBadge() {
@@ -1148,7 +1656,7 @@ class SmartGroceryApp {
 
           <div class="item-category-unit">
             <span class="category-tag">${getIcon(catObj.icon)} ${catObj.name}</span>
-            <span>• Satuan: ${item.unit}</span>
+            <span>• Satuan: <b>${item.unit}</b>${item.unitConversion ? `<span class="unit-conv-tag">(${item.unitConversion})</span>` : ''}</span>
           </div>
 
           <!-- Price Fluctuation & Discount Badges -->
@@ -1375,18 +1883,14 @@ class SmartGroceryApp {
       (c) => `<option value="${c.id}">${c.name}</option>`
     ).join('');
 
-    // Populate Unit Options
-    this.inputUnit.innerHTML = UNITS.map(
-      (u) => `<option value="${u.id}">${u.label}</option>`
-    ).join('');
-
     // Reset status active chip diskon
     document.querySelectorAll('.disc-preset-chip').forEach((c) => c.classList.remove('active-preset'));
 
     if (itemToEdit) {
       this.inputName.value = itemToEdit.name;
       this.inputCategory.value = itemToEdit.category;
-      this.inputUnit.value = itemToEdit.unit;
+      this.updateContextualUnits(itemToEdit.name, itemToEdit.unit);
+      if (this.inputUnitConversion) this.inputUnitConversion.value = itemToEdit.unitConversion || '';
       this.inputQty.value = itemToEdit.qty;
       this.inputUnitPrice.value = itemToEdit.unitPrice;
       this.inputLastMonthPrice.value = itemToEdit.lastMonthPrice || '';
@@ -1396,6 +1900,10 @@ class SmartGroceryApp {
       this.inputNotes.value = itemToEdit.notes || '';
     } else {
       this.itemForm.reset();
+      this.updateContextualUnits('');
+      if (this.customUnitGroup) this.customUnitGroup.style.display = 'none';
+      if (this.inputCustomUnit) this.inputCustomUnit.value = '';
+      if (this.inputUnitConversion) this.inputUnitConversion.value = '';
       this.inputQty.value = 1;
       this.inputDisc1.value = 0;
       this.inputDisc2.value = 0;
@@ -1405,6 +1913,34 @@ class SmartGroceryApp {
     this.updateModalLivePreview();
     this.itemModal.classList.add('open');
     setTimeout(() => this.inputName.focus(), 150);
+  }
+
+  /**
+   * Poin 1: Update Opsi Satuan Dinamis Berdasarkan Pencocokan Nama Produk
+   * @param {string} productName 
+   * @param {string|null} preselectUnit 
+   */
+  updateContextualUnits(productName = '', preselectUnit = null) {
+    if (!this.inputUnit) return;
+    const currentVal = preselectUnit || this.inputUnit.value;
+    const contextualUnits = getContextualUnitsForProduct(productName);
+
+    let html = contextualUnits.map((u) => `<option value="${u}">${u}</option>`).join('');
+    html += `<option value="__custom__">✏️ Custom / Tulis Sendiri...</option>`;
+    this.inputUnit.innerHTML = html;
+
+    if (currentVal && contextualUnits.includes(currentVal)) {
+      this.inputUnit.value = currentVal;
+      if (this.customUnitGroup) this.customUnitGroup.style.display = 'none';
+    } else if (currentVal && currentVal !== '__custom__') {
+      // Nilai custom tersimpan
+      this.inputUnit.value = '__custom__';
+      if (this.customUnitGroup) this.customUnitGroup.style.display = 'block';
+      if (this.inputCustomUnit) this.inputCustomUnit.value = currentVal;
+    } else {
+      this.inputUnit.value = contextualUnits[0] || 'pcs';
+      if (this.customUnitGroup) this.customUnitGroup.style.display = 'none';
+    }
   }
 
   closeItemModal() {
@@ -1471,15 +2007,31 @@ class SmartGroceryApp {
       return;
     }
 
+    // Validasi kuantitas hanya angka positif minimal 0.1 (Poin 1)
     const rawQty = Number(this.inputQty.value);
     if (isNaN(rawQty) || rawQty <= 0) {
-      this.showToast('Kuantitas beli minimal 1!', true);
+      this.showToast('Kuantitas beli harus angka positif (minimal 0.1)!', true);
       SoundFeedback.warning();
+      if (this.inputQty) this.inputQty.focus();
       return;
+    }
+
+    // Tentukan satuan (apakah dari dropdown atau custom tulis sendiri)
+    let finalUnit = this.inputUnit.value;
+    if (finalUnit === '__custom__') {
+      const customVal = this.inputCustomUnit ? this.inputCustomUnit.value.trim() : '';
+      if (!customVal) {
+        this.showToast('Silakan tulis format satuan custom Anda!', true);
+        SoundFeedback.warning();
+        if (this.inputCustomUnit) this.inputCustomUnit.focus();
+        return;
+      }
+      finalUnit = customVal;
     }
 
     const unitPrice = rawUnitPrice;
     const qty = rawQty;
+    const unitConversion = this.inputUnitConversion ? this.inputUnitConversion.value.trim() : '';
     const lastMonthPrice = Math.max(0, Number(this.inputLastMonthPrice.value) || 0);
     const disc1 = Math.max(0, Math.min(100, Number(this.inputDisc1.value) || 0));
     const disc2 = Math.max(0, Math.min(100, Number(this.inputDisc2.value) || 0));
@@ -1493,7 +2045,8 @@ class SmartGroceryApp {
           ...this.items[idx],
           name,
           category: this.inputCategory.value,
-          unit: this.inputUnit.value,
+          unit: finalUnit,
+          unitConversion,
           qty,
           unitPrice,
           lastMonthPrice,
@@ -1510,7 +2063,8 @@ class SmartGroceryApp {
         id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         name,
         category: this.inputCategory.value,
-        unit: this.inputUnit.value,
+        unit: finalUnit,
+        unitConversion,
         qty,
         unitPrice,
         lastMonthPrice,
@@ -1610,78 +2164,208 @@ class SmartGroceryApp {
     this.checkoutModal.classList.add('open');
   }
 
-  async finishAndArchiveShopping() {
+  // ==========================================================================
+  // POIN 2: FITUR SELESAI BELANJA, STRUK TOTAL & ARSIP RIWAYAT (CHECKOUT)
+  // ==========================================================================
+
+  async promptFinishShopping() {
+    const inCartItems = this.items.filter((it) => it.inCart);
+    if (inCartItems.length === 0) {
+      SoundFeedback.warning();
+      this.showToast('Troli belanja masih kosong! Masukkan barang terlebih dahulu.', true);
+      return;
+    }
+
+    const ok = await this.showConfirmDialog(
+      'Selesaikan Belanja & Cetak Struk',
+      `Anda memiliki ${inCartItems.length} barang di troli. Ingin menyelesaikan belanja, mengarsipkan transaksi ini, dan mencetak struk digital?`,
+      '🧾',
+      'Ya, Selesai Belanja',
+      false
+    );
+
+    if (ok) {
+      this.handleFinishShopping();
+    }
+  }
+
+  handleFinishShopping() {
     const inCartItems = this.items.filter((it) => it.inCart);
     if (inCartItems.length === 0) return;
 
-    const ok = await this.showConfirmDialog(
-      'Selesaikan Belanja',
-      'Selesaikan belanja dan simpan sesi ini ke Riwayat Belanja?',
-      '🧾',
-      'Ya, Simpan Riwayat',
-      false
-    );
-    if (!ok) return;
+    let subtotalRaw = 0;
+    let totalDiscountSavings = 0;
+    let totalFinal = 0;
 
-    const totalSpent = this.getTotalSpent();
+    const itemsReceipt = inCartItems.map((item) => {
+      const disc = Calculations.calculateTieredDiscount(
+        item.unitPrice,
+        item.disc1,
+        item.disc2,
+        item.fixedDiscount
+      );
+      const rowRaw = item.unitPrice * item.qty;
+      const rowFinal = Calculations.calculateItemTotal(disc.finalUnitPrice, item.qty);
+      const rowSaving = rowRaw - rowFinal;
+
+      subtotalRaw += rowRaw;
+      totalDiscountSavings += rowSaving;
+      totalFinal += rowFinal;
+
+      return {
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        unit: item.unit,
+        unitConversion: item.unitConversion || '',
+        qty: item.qty,
+        unitPriceRaw: item.unitPrice,
+        unitPriceFinal: disc.finalUnitPrice,
+        disc1: item.disc1 || 0,
+        disc2: item.disc2 || 0,
+        fixedDiscount: item.fixedDiscount || 0,
+        saving: rowSaving,
+        rowTotal: rowFinal
+      };
+    });
+
     const evaluation = Calculations.evaluateBudgetSafety(
-      totalSpent,
+      totalFinal,
       this.budgetConfig.budgetCap,
       this.budgetConfig.safetyBuffer
     );
 
-    // Format tanggal saat ini (contoh: 12 Oktober 2026)
     const now = new Date();
-    const dateStr = now.toLocaleDateString('id-ID', {
+    const dateFormatted = now.toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
     });
+    const timeFormatted = now.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-    const newHistorySession = {
-      id: `hist_${Date.now()}`,
-      date: dateStr,
-      totalSpent,
-      budgetCap: this.budgetConfig.budgetCap,
+    const storeName = this.selectStore ? this.selectStore.value : 'Lotte Mart Grocery - Puri Indah';
+    const trxId = 'TRX-' + now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
+
+    const transactionRecord = {
+      id: trxId,
+      storeName,
+      date: dateFormatted,
+      time: timeFormatted,
+      timestamp: now.toISOString(),
+      items: itemsReceipt,
       totalItems: inCartItems.length,
+      subtotalRaw,
+      totalDiscountSavings,
+      totalSpent: totalFinal,
+      budgetCap: this.budgetConfig.budgetCap,
+      safetyBuffer: this.budgetConfig.safetyBuffer,
       status: evaluation.level,
-      notes: `Belanja bulanan selesai. Status: ${evaluation.statusTitle}`,
-      items: inCartItems.map((it) => {
-        const disc = Calculations.calculateTieredDiscount(it.unitPrice, it.disc1, it.disc2, it.fixedDiscount);
-        return {
-          name: it.name,
-          unitPrice: disc.finalUnitPrice,
-          qty: it.qty,
-          total: disc.finalUnitPrice * it.qty
-        };
-      })
+      statusTitle: evaluation.statusTitle,
+      notes: `Selesai belanja di ${storeName}. Status dompet: ${evaluation.statusTitle}`
     };
 
-    // Tambahkan ke riwayat
-    this.historySessions.unshift(newHistorySession);
-    Storage.saveHistory(this.historySessions);
+    // 1. Simpan transaksi ke riwayat belanja (LocalStorage & Firestore)
+    Storage.addHistorySession(transactionRecord);
+    this.historySessions = Storage.getHistory();
 
-    // Update harga riwayat bulan lalu & rekam ke memori harga otomatis
-    // sehingga saat belanja berikutnya, harga saat ini otomatis menjadi patokan masa lalu!
-    this.items.forEach((it) => {
-      if (it.inCart) {
-        Storage.recordProductPrice(it.name, it.unitPrice, it.category, it.unit);
-        it.lastMonthPrice = it.unitPrice;
-        it.inCart = false; // Reset checklist troli
-      }
+    // Rekam harga produk ke memori harga permanen untuk patokan masa lalu
+    inCartItems.forEach((it) => {
+      Storage.recordProductPrice(it.name, it.unitPrice, it.category, it.unit);
     });
+
+    // 2. Kosongkan seluruh item yang ada di dalam troli saat ini (Reset keranjang belanja)
+    this.items = [];
     Storage.saveItems(this.items);
+
+    // Sinkronkan ke Cloud Firestore (sehingga di perangkat lain HP/Laptop juga langsung kosong)
     this.syncCurrentDataWithCloud();
 
-    this.checkoutModal.classList.remove('open');
-    SoundFeedback.success();
-    this.showToast('Sesi belanja berhasil disimpan ke Riwayat!');
-    this.switchTab('riwayat');
+    // Render ulang tampilan utama
     this.render();
+
+    // 3. Tampilkan modal struk digital resmi
+    SoundFeedback.success();
+    this.showToast('🎉 Belanja selesai! Transaksi diarsipkan ke Riwayat Belanja.');
+    this.openReceiptModal(transactionRecord);
+  }
+
+  openReceiptModal(trx) {
+    if (!this.receiptModal || !this.receiptPaperContainer) return;
+
+    const itemsHtml = trx.items.map((it, idx) => `
+      <div class="receipt-item-row">
+        <div style="flex:1; padding-right:8px;">
+          <div class="receipt-item-name">${idx + 1}. ${it.name}</div>
+          <div class="receipt-item-subcalc">
+            ${it.qty} ${it.unit} ${it.unitConversion ? `(${it.unitConversion})` : ''} x ${Calculations.formatRupiah(it.unitPriceFinal)}
+            ${it.saving > 0 ? `<span style="color:#16a34a; font-weight:700;">(Hemat ${Calculations.formatRupiah(it.saving)})</span>` : ''}
+          </div>
+        </div>
+        <div style="font-weight:700; text-align:right;">
+          ${Calculations.formatRupiah(it.rowTotal)}
+        </div>
+      </div>
+    `).join('');
+
+    this.receiptPaperContainer.innerHTML = `
+      <div class="receipt-header-center">
+        <div class="receipt-store-title">🏬 ${trx.storeName.toUpperCase()}</div>
+        <div class="receipt-meta-info">
+          <div>No. Struk: <b>${trx.id}</b></div>
+          <div>Waktu: ${trx.date} • ${trx.time} WIB</div>
+          <div>Kasir: Self-Checkout PWA</div>
+        </div>
+      </div>
+
+      <div style="font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:8px; border-bottom:1px dashed #cbd5e1; padding-bottom:4px;">
+        RINCIAN BELANJAAN (${trx.totalItems} ITEM):
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        ${itemsHtml}
+      </div>
+
+      <div class="receipt-divider"></div>
+
+      <div class="receipt-summary-line">
+        <span>Subtotal Kotor:</span>
+        <span>${Calculations.formatRupiah(trx.subtotalRaw || trx.totalSpent)}</span>
+      </div>
+
+      <div class="receipt-summary-line" style="color:#16a34a; font-weight:700;">
+        <span>Total Hemat Promo:</span>
+        <span>-${Calculations.formatRupiah(trx.totalDiscountSavings || 0)}</span>
+      </div>
+
+      <div class="receipt-grand-total receipt-summary-line">
+        <span>TOTAL AKHIR:</span>
+        <span>${Calculations.formatRupiah(trx.totalSpent)}</span>
+      </div>
+
+      <div class="receipt-summary-line" style="font-size:0.75rem; color:#475569;">
+        <span>Batas Anggaran Dompet:</span>
+        <span>${Calculations.formatRupiah(trx.budgetCap)}</span>
+      </div>
+
+      <div class="receipt-summary-line" style="font-size:0.75rem; color:#475569;">
+        <span>Status Saldo:</span>
+        <b>${trx.statusTitle || 'Anggaran Terkendali'}</b>
+      </div>
+
+      <div class="receipt-barcode-visual">
+        <div style="font-weight:700; letter-spacing:0.5px;">TERIMA KASIH TELAH BERBELANJA HEMAT</div>
+        <div style="font-size:0.65rem; color:#64748b; margin-top:3px;">Simpan struk digital ini sebagai bukti pengeluaran bulanan</div>
+      </div>
+    `;
+
+    this.receiptModal.classList.add('open');
   }
 
   // ==========================================================================
-  // TAB 2: RIWAYAT & DATABASE HARGA
+  // TAB 2: RIWAYAT BELANJA (FORMAT STRUK DIGITAL - POIN 2)
   // ==========================================================================
 
   renderHistory() {
@@ -1691,6 +2375,9 @@ class SmartGroceryApp {
         <div class="empty-state">
           <div class="empty-icon">${getIcon('history')}</div>
           <p>Belum ada riwayat belanja yang disimpan.</p>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+            Setelah memasukkan barang dan menekan <b>Selesai Belanja</b>, struk transaksi akan otomatis tersimpan di sini.
+          </div>
         </div>
       `;
       return;
@@ -1698,7 +2385,7 @@ class SmartGroceryApp {
 
     this.historySessions.forEach((session) => {
       const card = document.createElement('div');
-      card.className = 'history-card';
+      card.className = 'history-receipt-card';
 
       let statusBadge = '<span class="budget-status-pill pill-safe">Aman</span>';
       if (session.status === 'warning') statusBadge = '<span class="budget-status-pill pill-warning">Waspada</span>';
@@ -1710,11 +2397,11 @@ class SmartGroceryApp {
           <div style="flex:1; padding-right:8px;">
             <div style="font-weight:600; color:var(--text-main);">• ${it.name}</div>
             <div style="font-size:0.7rem; color:var(--text-muted);">
-              ${it.qty}x • Total: ${Calculations.formatRupiah(it.total)} 
-              <span style="color:var(--emerald-400);">(@ ${Calculations.formatRupiah(it.unitPrice)})</span>
+              ${it.qty} ${it.unit || 'unit'} ${it.unitConversion ? `(${it.unitConversion})` : ''} • Total: ${Calculations.formatRupiah(it.rowTotal || it.total)} 
+              <span style="color:var(--emerald-400);">(@ ${Calculations.formatRupiah(it.unitPriceFinal || it.unitPrice)})</span>
             </div>
           </div>
-          <button class="btn-rebuy" data-name="${it.name}" data-price="${it.unitPrice}" title="Masukkan barang ini kembali ke troli">
+          <button class="btn-rebuy" data-name="${it.name}" data-price="${it.unitPriceFinal || it.unitPrice}" title="Masukkan barang ini kembali ke troli">
             ${getIcon('cart')} Beli Lagi
           </button>
         </div>
@@ -1723,32 +2410,42 @@ class SmartGroceryApp {
       card.innerHTML = `
         <div class="history-card-header">
           <div>
-            <div class="history-date">${session.date}</div>
-            <div style="font-size:0.72rem; color:var(--text-muted);">${session.totalItems} Barang Dibeli • ${session.notes || ''}</div>
+            <div class="history-store-name">🏬 ${session.storeName || 'Lotte Mart Grocery'}</div>
+            <div class="history-date-badge">📅 ${session.date} ${session.time ? `• ${session.time}` : ''} • No: ${session.id || 'TRX-AUTO'}</div>
           </div>
           ${statusBadge}
         </div>
 
         <div class="history-stats-row">
           <div>
-            <div class="history-stat-label">Total Belanja Kasir</div>
-            <div class="history-stat-val">${Calculations.formatRupiah(session.totalSpent)}</div>
+            <div class="history-stat-label">Total Belanja Struk</div>
+            <div class="history-stat-val" style="color:var(--emerald-400); font-size:1.1rem;">
+              ${Calculations.formatRupiah(session.totalSpent)}
+            </div>
+            ${session.totalDiscountSavings > 0 ? `
+              <div style="font-size:0.7rem; color:var(--emerald-400);">Hemat: -${Calculations.formatRupiah(session.totalDiscountSavings)}</div>
+            ` : ''}
           </div>
           <div style="text-align:right;">
             <div class="history-stat-label">Batas Anggaran Saku</div>
             <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--text-secondary);">
-              ${Calculations.formatRupiah(session.budgetCap)}
+              ${Calculations.formatRupiah(session.budgetCap || 350000)}
             </div>
+            <button type="button" class="btn-view-full-receipt" style="margin-top:4px; background:var(--bg-surface); border:1px solid var(--border-subtle); color:var(--sky-400); font-size:0.72rem; padding:4px 8px; border-radius:var(--radius-sm); cursor:pointer;">
+              🧾 Buka Struk
+            </button>
           </div>
         </div>
 
         <div class="history-items-mini">
-          <div style="font-size:0.72rem; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Rincian Barang & Patokan Harga:</div>
+          <div style="font-size:0.72rem; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">
+            Rincian Barang (${session.totalItems || (session.items ? session.items.length : 0)} Item):
+          </div>
           ${itemsListHtml}
         </div>
       `;
 
-      // Event listener tombol Beli Lagi
+      // Event listener Beli Lagi
       card.querySelectorAll('.btn-rebuy').forEach((btn) => {
         btn.addEventListener('click', () => {
           const name = btn.dataset.name;
@@ -1757,8 +2454,207 @@ class SmartGroceryApp {
         });
       });
 
+      // Event listener Buka Struk
+      const btnViewReceipt = card.querySelector('.btn-view-full-receipt');
+      if (btnViewReceipt) {
+        btnViewReceipt.addEventListener('click', () => {
+          this.openReceiptModal(session);
+        });
+      }
+
       this.historyListContainer.appendChild(card);
     });
+  }
+
+  // ==========================================================================
+  // POIN 8: FITUR IDE MENU MASAKAN CERDAS DARI ISI KERANJANG
+  // ==========================================================================
+
+  updateRecipeMatchBadge() {
+    if (!this.recipeMatchCountBadge) return;
+    const recipes = RecipeEngine.matchRecipes(this.items);
+    const readyCount = recipes.filter((r) => r.canCookNow).length;
+
+    if (this.recipeReadyCount) this.recipeReadyCount.textContent = readyCount;
+    if (this.recipeAllCount) this.recipeAllCount.textContent = recipes.length;
+
+    if (readyCount > 0) {
+      this.recipeMatchCountBadge.textContent = `🔥 ${readyCount} Menu Siap Masak`;
+      this.recipeMatchCountBadge.style.background = 'var(--emerald-500)';
+      this.recipeMatchCountBadge.style.color = '#022c22';
+    } else {
+      this.recipeMatchCountBadge.textContent = '💡 Cek Menu';
+      this.recipeMatchCountBadge.style.background = 'var(--amber-500)';
+      this.recipeMatchCountBadge.style.color = '#1e1b4b';
+    }
+  }
+
+  openRecipesModal() {
+    this.renderRecipesList();
+    this.recipesModal.classList.add('open');
+  }
+
+  renderRecipesList() {
+    if (!this.recipesListContainer) return;
+    const allRecipes = RecipeEngine.matchRecipes(this.items);
+    const readyCount = allRecipes.filter((r) => r.canCookNow).length;
+
+    if (this.recipeReadyCount) this.recipeReadyCount.textContent = readyCount;
+    if (this.recipeAllCount) this.recipeAllCount.textContent = allRecipes.length;
+
+    const filtered = this.activeRecipeFilter === 'ready'
+      ? allRecipes.filter((r) => r.canCookNow)
+      : allRecipes;
+
+    if (filtered.length === 0) {
+      this.recipesListContainer.innerHTML = `
+        <div style="text-align:center; padding:24px 12px; color:var(--text-muted);">
+          <div style="font-size:2rem; margin-bottom:6px;">🍳</div>
+          <div style="font-weight:700; color:var(--text-main); margin-bottom:4px;">Belum Ada Menu yang 100% Siap Masak</div>
+          <div style="font-size:0.75rem; line-height:1.4;">
+            Bahan di troli Anda belum mencukupi menu siap masak. Klik tab <b>"Semua Menu"</b> di atas untuk melihat inspirasi dan menambahkan bahan yang kurang dengan 1 klik!
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    this.recipesListContainer.innerHTML = filtered.map((recipe) => {
+      let badgeClass = 'recipe-match-low';
+      if (recipe.matchPercentage >= 75) badgeClass = 'recipe-match-high';
+      else if (recipe.matchPercentage >= 40) badgeClass = 'recipe-match-med';
+
+      const availableHtml = recipe.availableIngredients.length > 0
+        ? recipe.availableIngredients.map((ing) => `<span style="color:var(--emerald-400); font-weight:700;">✅ ${ing}</span>`).join(' • ')
+        : '<span style="color:var(--text-muted);">Belum ada</span>';
+
+      const missingHtml = recipe.missingIngredients.length > 0
+        ? recipe.missingIngredients.map((ing) => `
+            <div style="display:inline-flex; align-items:center; gap:4px; margin-right:6px; margin-top:4px;">
+              <span style="color:var(--rose-400);">❌ ${ing}</span>
+              <button type="button" class="btn-add-missing-ingredient" data-ing-name="${ing}">
+                + Ke Troli
+              </button>
+            </div>
+          `).join('')
+        : '<span style="color:var(--emerald-400); font-weight:700;">Semua bahan lengkap di troli!</span>';
+
+      const instructionsHtml = recipe.instructions.map((step, idx) => `
+        <div style="margin-bottom:3px;">${idx + 1}. ${step}</div>
+      `).join('');
+
+      return `
+        <div class="recipe-card-box ${recipe.canCookNow ? 'recipe-can-cook' : ''}">
+          <div class="recipe-header-row">
+            <div class="recipe-title-group">
+              <span class="recipe-emoji-big">${recipe.emoji}</span>
+              <div>
+                <div class="recipe-name">${recipe.name}</div>
+                <div class="recipe-meta-sub">${recipe.category} • ⏱️ ${recipe.prepTime} persiapan, ${recipe.cookTime} masak • 🍽️ ${recipe.servings}</div>
+              </div>
+            </div>
+            <span class="recipe-match-pill ${badgeClass}">
+              ${recipe.matchPercentage}% Cocok
+            </span>
+          </div>
+
+          <div class="recipe-ingredients-block">
+            <div style="margin-bottom:4px;">
+              <b>Bahan Tersedia di Troli:</b> ${availableHtml}
+            </div>
+            <div>
+              <b>Bahan yang Masih Kurang:</b>
+              <div style="margin-top:2px;">${missingHtml}</div>
+            </div>
+          </div>
+
+          <details style="font-size:0.75rem; color:var(--text-secondary); cursor:pointer;">
+            <summary style="font-weight:700; color:var(--amber-400); margin-bottom:4px;">
+              📖 Lihat Cara Memasak Praktis
+            </summary>
+            <div style="background:var(--bg-surface); padding:8px 10px; border-radius:var(--radius-sm); margin-top:4px; line-height:1.45;">
+              ${instructionsHtml}
+            </div>
+          </details>
+        </div>
+      `;
+    }).join('');
+
+    // Pasang listener tombol tambah bahan kurang ke troli
+    this.recipesListContainer.querySelectorAll('.btn-add-missing-ingredient').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const ingName = e.currentTarget.dataset.ingName;
+        this.addMissingIngredientToCart(ingName);
+      });
+    });
+  }
+
+  addMissingIngredientToCart(ingredientName) {
+    const newItem = {
+      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      name: ingredientName,
+      category: 'pokok',
+      unit: 'pcs',
+      unitConversion: '',
+      qty: 1,
+      unitPrice: 10000,
+      lastMonthPrice: 10000,
+      disc1: 0,
+      disc2: 0,
+      fixedDiscount: 0,
+      inCart: true,
+      notes: 'Bahan pelengkap resep masakan'
+    };
+
+    this.items.unshift(newItem);
+    Storage.saveItems(this.items);
+    this.syncCurrentDataWithCloud();
+    SoundFeedback.success();
+    this.showToast(`+1 ${ingredientName} ditambahkan ke troli belanja!`);
+    this.render();
+    this.renderRecipesList();
+  }
+
+  // ==========================================================================
+  // POIN 7: FITUR DOWNLOAD & PASANG APLIKASI MANDIRI (PWA INSTALL)
+  // ==========================================================================
+
+  async handlePwaInstallClick() {
+    if (this.deferredPrompt) {
+      this.deferredPrompt.prompt();
+      const { outcome } = await this.deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        this.showToast('Aplikasi berhasil dipasang di perangkat Anda!');
+      }
+      this.deferredPrompt = null;
+      if (this.pwaGuideModal) this.pwaGuideModal.classList.remove('open');
+    } else {
+      // Jika browser tidak support event prompt (misal iOS Safari atau Desktop tanpa native prompt)
+      if (this.pwaGuideModal) {
+        this.pwaGuideModal.classList.add('open');
+      } else {
+        this.showToast('Gunakan menu browser > "Add to Home Screen" untuk memasang.');
+      }
+    }
+  }
+
+  downloadStandaloneOfflineHtml() {
+    try {
+      const htmlContent = document.documentElement.outerHTML;
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'SmartGrocery-Standalone-App.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      SoundFeedback.success();
+      this.showToast('File aplikasi standalone berhasil diunduh!');
+    } catch (e) {
+      this.showToast('Gagal mengunduh file offline.', true);
+    }
   }
 
   reBuyItem(name, pastUnitPrice) {
