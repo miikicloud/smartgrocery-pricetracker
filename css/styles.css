@@ -2585,8 +2585,13 @@ body.auth-locked-mode #authModal #btnCloseAuth {
 }
 
 /* ==========================================================================
-   FITUR 7: PWA DOWNLOAD FOOTER CARD
+   FITUR 7: PWA DOWNLOAD FOOTER CARD (Disembunyikan dari UI sesuai permintaan pengguna)
    ========================================================================== */
+#installPwaBtn,
+.pwa-download-footer-card {
+  display: none !important;
+}
+
 .pwa-download-footer-card {
   margin: 20px 0 16px 0;
   background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
