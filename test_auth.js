@@ -105,4 +105,77 @@ if (!restored) {
 console.log('✓ Restore Snapshot Berhasil!');
 
 unsubscribe();
+
+console.log('\n--- TEST 7: BATAS WAKTU SESI LOGIN (SESSION TIMEOUT 5 JAM) ---');
+// 7A: Sesi aktif < 5 jam (misal 2 jam lalu) harus tetap bertahan
+const TWO_HOURS_AGO = Date.now() - (2 * 60 * 60 * 1000);
+store['sg_current_user_session_v1'] = JSON.stringify({
+  id: 'user_active_test',
+  name: 'User Aktif',
+  email: 'active@smartgrocery.app',
+  loginTimestamp: TWO_HOURS_AGO,
+  loggedInAt: new Date(TWO_HOURS_AGO).toISOString()
+});
+const activeSession = Auth.getCurrentUser();
+if (!activeSession || activeSession.id !== 'user_active_test') {
+  throw new Error('Test 7A Gagal: Sesi < 5 jam harusnya tetap bertahan!');
+}
+console.log('✓ Sesi Login < 5 Jam Berhasil Dipertahankan!');
+
+// 7B: Sesi kadaluwarsa > 5 jam (misal 5.1 jam lalu) harus otomatis logout
+const OVER_FIVE_HOURS_AGO = Date.now() - (5.1 * 60 * 60 * 1000);
+store['sg_current_user_session_v1'] = JSON.stringify({
+  id: 'user_expired_test',
+  name: 'User Expired',
+  email: 'expired@smartgrocery.app',
+  loginTimestamp: OVER_FIVE_HOURS_AGO,
+  loggedInAt: new Date(OVER_FIVE_HOURS_AGO).toISOString()
+});
+const expiredSession = Auth.getCurrentUser();
+if (expiredSession !== null || store['sg_current_user_session_v1']) {
+  throw new Error('Test 7B Gagal: Sesi > 5 jam harus otomatis di-logout!');
+}
+console.log('✓ Sesi Login > 5 Jam Berhasil Otomatis Logout!');
+
+console.log('\n--- TEST 8: NOTIFIKASI AKUN TIDAK TERDAFTAR ---');
+const unregResult = Auth.login('tidak_terdaftar@domain.com', 'password123');
+if (unregResult.success || !unregResult.notRegistered || !unregResult.message.includes('Akun tidak terdaftar')) {
+  throw new Error('Test 8 Gagal: Akun tidak terdaftar harus mengembalikan notRegistered: true!');
+}
+console.log('✓ Notifikasi Akun Tidak Terdaftar Lulus:', unregResult.message);
+
+console.log('\n--- TEST 9: NOTIFIKASI PASSWORD SALAH SPESIFIK ---');
+const wrongPassResult = Auth.login('budi@smartgrocery.app', 'SalahPasswordNya');
+if (wrongPassResult.success || !wrongPassResult.wrongPassword || !wrongPassResult.message.includes('Password yang Anda masukkan salah')) {
+  throw new Error('Test 9 Gagal: Password salah harus mengembalikan wrongPassword: true!');
+}
+console.log('✓ Notifikasi Password Salah Lulus:', wrongPassResult.message);
+
+console.log('\n--- TEST 10: CROSS-DEVICE USER UPSERT ---');
+const crossDeviceUser = {
+  id: 'user_cross_99',
+  name: 'Lina Marlina',
+  email: 'lina@domain.com',
+  password: 'marlinapassword'
+};
+Auth.upsertUser(crossDeviceUser);
+const linaLogin = Auth.login('lina@domain.com', 'marlinapassword');
+if (!linaLogin.success || linaLogin.user.id !== 'user_cross_99') {
+  throw new Error('Test 10 Gagal: Akun upsert lintas perangkat gagal login!');
+}
+console.log('✓ Akun Lintas Perangkat Berhasil Login!');
+
+console.log('\n--- TEST 11: VALIDASI PASSWORD SALAH TANPA SURUH BIKIN AKUN BARU ---');
+// 11A: Login via username 'budi' dengan password salah
+const wrongByUsername = Auth.login('budi', 'PasswordNgawur');
+if (!wrongByUsername.wrongPassword || wrongByUsername.notRegistered) {
+  throw new Error('Test 11A Gagal: Login via username dengan password salah harusnya wrongPassword: true!');
+}
+// 11B: Login via nama 'Budi Santoso' dengan password salah
+const wrongByName = Auth.login('Budi Santoso', 'PasswordNgawur');
+if (!wrongByName.wrongPassword || wrongByName.notRegistered) {
+  throw new Error('Test 11B Gagal: Login via nama dengan password salah harusnya wrongPassword: true!');
+}
+console.log('✓ Password Salah Melalui Email, Username, atau Nama Tetap Memberikan Error Password Salah (Bukan Bikin Akun Baru)!');
+
 console.log('\n>> SEMUA TEST SISTEM AUTH, CLOUD SYNC & ONSNAPSHOT LULUS 100%! <<');

@@ -21,11 +21,23 @@
   <!-- Core Stylesheet -->
   <link rel="stylesheet" href="./css/styles.css">
 
-  <!-- Deteksi Awal Sesi Pengguna: Kunci Layar dengan Gerbang Login jika Belum Login -->
+  <!-- Deteksi Awal Sesi Pengguna: Kunci Layar jika Belum Login atau Sesi Kedaluwarsa (> 5 Jam) -->
   <script>
     try {
       var activeSession = localStorage.getItem('sg_current_user_session_v1');
-      if (!activeSession) {
+      var FIVE_HOURS_MS = 5 * 60 * 60 * 1000; // Batas Waktu Sesi 5 Jam
+      var shouldLock = true;
+      if (activeSession) {
+        var parsed = JSON.parse(activeSession);
+        var loginTime = parsed.loginTimestamp || (parsed.loggedInAt ? new Date(parsed.loggedInAt).getTime() : 0);
+        if (loginTime && (Date.now() - loginTime) <= FIVE_HOURS_MS) {
+          shouldLock = false;
+        } else {
+          // Sesi sudah melebihi 5 jam atau tanpa timestamp valid -> logout otomatis
+          localStorage.removeItem('sg_current_user_session_v1');
+        }
+      }
+      if (shouldLock) {
         document.documentElement.classList.add('auth-locked-mode');
       }
     } catch (e) {
@@ -253,7 +265,7 @@
           </div>
 
           <!-- Tombol Selesai Belanja (Checkout & Cetak Struk) -->
-          <div class="checkout-action-wrap" style="margin-top:16px; margin-bottom:16px;">
+          <div class="checkout-action-wrap" style="margin-top:16px; margin-bottom:12px;">
             <button id="btnFinishShoppingMain" type="button" class="btn-finish-shopping-main">
               <span class="finish-icon">🧾</span>
               <span class="finish-text">
@@ -261,6 +273,14 @@
                 <span class="finish-sub">Arsipkan transaksi & cetak struk digital</span>
               </span>
               <span class="finish-arrow">→</span>
+            </button>
+          </div>
+
+          <!-- Tombol Hapus Seluruh Belanjaan (Aman dengan Modal Konfirmasi Non-Blocking) -->
+          <div id="clearCartRow" style="display:flex; justify-content:center; margin-bottom:20px;">
+            <button id="btnClearAllCart" type="button" class="btn-clear-all-cart" aria-label="Hapus Seluruh Belanjaan">
+              <span>🗑️</span>
+              <span>Hapus Seluruh Belanjaan</span>
             </button>
           </div>
         </section>
@@ -325,13 +345,13 @@
 
               <div class="form-group">
                 <label class="form-label" for="inputBudgetCap">Batas Anggaran / Uang Saku Dompet (Rp) *</label>
-                <input type="number" id="inputBudgetCap" inputmode="numeric" class="form-input form-input-lg" placeholder="Contoh: 350000" min="0" step="1000">
+                <input type="number" id="inputBudgetCap" inputmode="numeric" pattern="[0-9]*" class="form-input form-input-lg" placeholder="Contoh: 350000" min="0" step="1000">
                 <span style="font-size:0.72rem; color:var(--text-muted);">Batas maksimal uang yang kamu bawa ke supermarket.</span>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="inputSafetyBuffer">Safety Buffer / Cadangan Darurat (Rp)</label>
-                <input type="number" id="inputSafetyBuffer" inputmode="numeric" class="form-input" placeholder="Contoh: 15000" min="0" step="1000">
+                <input type="number" id="inputSafetyBuffer" inputmode="numeric" pattern="[0-9]*" class="form-input" placeholder="Contoh: 15000" min="0" step="1000">
                 <span style="font-size:0.72rem; color:var(--text-muted);">Uang cadangan untuk biaya parkir, kantong kresek, dan pembulatan kasir.</span>
               </div>
 
@@ -478,18 +498,18 @@
             <div class="input-row-grid">
               <div class="form-group">
                 <label class="form-label" for="inputQty">Kuantitas Beli (Qty) *</label>
-                <input type="number" id="inputQty" inputmode="decimal" class="form-input form-input-lg" min="0.1" step="any" value="1" placeholder="Misal: 1 atau 0.5" required>
+                <input type="number" id="inputQty" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-input form-input-lg" min="0.1" step="any" value="1" placeholder="Misal: 1 atau 0.5" required>
               </div>
               <div class="form-group">
                 <label class="form-label" for="inputUnitPrice">Harga Satuan Saat Ini (Rp) *</label>
-                <input type="number" id="inputUnitPrice" inputmode="numeric" class="form-input form-input-lg" placeholder="Contoh: 35000" min="0" step="100" required>
+                <input type="number" id="inputUnitPrice" inputmode="numeric" pattern="[0-9]*" class="form-input form-input-lg" placeholder="Contoh: 35000" min="0" step="100" required>
               </div>
             </div>
 
             <!-- Harga Bulan Lalu (Untuk Deteksi Fluktuasi Realtime) -->
             <div class="form-group">
               <label class="form-label" for="inputLastMonthPrice">Harga Riwayat Bulan Lalu (Rp)</label>
-              <input type="number" id="inputLastMonthPrice" inputmode="numeric" class="form-input" placeholder="Harga patokan bulan lalu untuk produk ini" min="0" step="100">
+              <input type="number" id="inputLastMonthPrice" inputmode="numeric" pattern="[0-9]*" class="form-input" placeholder="Harga patokan bulan lalu untuk produk ini" min="0" step="100">
               <span style="font-size:0.72rem; color:var(--text-muted);">Indikator panah akan seketika muncul membandingkan harga.</span>
             </div>
 
@@ -515,15 +535,15 @@
 
               <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:8px; margin-top:8px;">
                 <div>
-                  <input type="number" id="inputDisc1" inputmode="numeric" class="form-input" placeholder="Disc 1 %" min="0" max="100" value="0">
+                  <input type="number" id="inputDisc1" inputmode="numeric" pattern="[0-9]*" class="form-input" placeholder="Disc 1 %" min="0" max="100" value="0">
                   <span style="font-size:0.68rem; color:var(--text-muted);">Diskon 1 (%)</span>
                 </div>
                 <div>
-                  <input type="number" id="inputDisc2" inputmode="numeric" class="form-input" placeholder="Disc 2 %" min="0" max="100" value="0">
+                  <input type="number" id="inputDisc2" inputmode="numeric" pattern="[0-9]*" class="form-input" placeholder="Disc 2 %" min="0" max="100" value="0">
                   <span style="font-size:0.68rem; color:var(--text-muted);">Diskon 2 bertumpuk (%)</span>
                 </div>
                 <div>
-                  <input type="number" id="inputFixedDiscount" inputmode="numeric" class="form-input" placeholder="Voucher Rp" min="0" value="0">
+                  <input type="number" id="inputFixedDiscount" inputmode="numeric" pattern="[0-9]*" class="form-input" placeholder="Voucher Rp" min="0" value="0">
                   <span style="font-size:0.68rem; color:var(--text-muted);">Kupon/Voucher (Rp)</span>
                 </div>
               </div>
@@ -637,8 +657,8 @@
 
           <!-- Tampilan Form Login & Register -->
           <div id="authFormView">
-            <!-- Quick Account Switcher jika ada akun tersimpan -->
-            <div id="quickAccountsPrompt" style="display:none; margin-bottom:12px; padding:10px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-md);">
+            <!-- Quick Account Switcher (Disembunyikan sesuai Tugas 2: Sembunyikan Fitur Masuk Instan) -->
+            <div id="quickAccountsPrompt" style="display:none !important; margin-bottom:12px; padding:10px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-md);">
               <div style="font-size:0.78rem; font-weight:700; color:var(--emerald-400); margin-bottom:6px;">
                 ⚡ Akun Tersimpan di Perangkat Ini:
               </div>
@@ -650,11 +670,17 @@
               <button id="tabAuthRegister" class="filter-pill" style="text-align:center;">Daftar Akun Baru</button>
             </div>
 
+            <!-- Inline Alert Notifikasi Error Login / Sign Up (Tampak Langsung di Modal) -->
+            <div id="authAlertBanner" class="auth-alert-banner alert-danger" style="display:none;">
+              <span id="authAlertIcon" class="auth-alert-icon">⚠️</span>
+              <span id="authAlertMsg">Password yang Anda masukkan salah. Silakan coba lagi.</span>
+            </div>
+
             <!-- Form Sign In -->
             <form id="loginForm">
               <div class="form-group">
-                <label class="form-label" for="loginEmail">Email Akun *</label>
-                <input type="email" id="loginEmail" class="form-input" placeholder="contoh: user@smartgrocery.app" required autocomplete="username">
+                <label class="form-label" for="loginEmail">Email / Username Akun *</label>
+                <input type="text" id="loginEmail" class="form-input" placeholder="contoh: user@smartgrocery.app atau username" required autocomplete="username">
               </div>
               <div class="form-group">
                 <label class="form-label" for="loginPassword">Password *</label>
@@ -662,11 +688,12 @@
               </div>
               <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">Masuk ke Akun Cloud</button>
               
-              <button id="btnQuickDemoLogin" type="button" class="btn-secondary" style="width:100%; margin-top:8px; border-color:var(--emerald-500); color:var(--emerald-400); font-weight:700; font-size:0.82rem; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <!-- Tombol & Info Masuk Cepat Demo (Disembunyikan sesuai Tugas 2: Sembunyikan Fitur Masuk Instan) -->
+              <button id="btnQuickDemoLogin" type="button" class="btn-secondary" style="display:none !important; width:100%; margin-top:8px; border-color:var(--emerald-500); color:var(--emerald-400); font-weight:700; font-size:0.82rem; align-items:center; justify-content:center; gap:6px;">
                 ⚡ Masuk Cepat Akun Demo (1-Klik)
               </button>
 
-              <div style="margin-top:8px; font-size:0.72rem; color:var(--text-muted); text-align:center;">
+              <div style="display:none !important; margin-top:8px; font-size:0.72rem; color:var(--text-muted); text-align:center;">
                 💡 Akun demo bawaan: <b>user@smartgrocery.app</b> | password: <b>password123</b>
               </div>
             </form>

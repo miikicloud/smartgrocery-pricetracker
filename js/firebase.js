@@ -216,6 +216,89 @@ class FirebaseRealtimeEngine {
       return false;
     }
   }
+
+  /**
+   * Sesuai Tugas 3: Perbaiki Bug Login Lintas Perangkat (Cross-Device Login)
+   * Menyimpan data registrasi akun ke Firestore Cloud database secara konsisten
+   * @param {object} user - { id, name, email, password, createdAt }
+   * @returns {Promise<boolean>}
+   */
+  async saveUserToCloud(user) {
+    if (!user || !user.email) return false;
+    const ready = await this.initSdk();
+    if (!ready || !this.db) return false;
+
+    try {
+      const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+      const cleanEmail = String(user.email).trim().toLowerCase();
+      const userKey = cleanEmail.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      const userData = {
+        id: user.id || `user_${Date.now()}`,
+        name: user.name || 'Pengguna',
+        email: cleanEmail,
+        password: String(user.password || '').trim(),
+        createdAt: user.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // 1. Simpan di collection grocery_sessions (collection teruji dan diizinkan)
+      const docRefSession = doc(this.db, 'grocery_sessions', `auth_user_${userKey}`);
+      await setDoc(docRefSession, userData, { merge: true });
+
+      // 2. Simpan juga di collection grocery_users jika tersedia
+      try {
+        const docRefUser = doc(this.db, 'grocery_users', userKey);
+        await setDoc(docRefUser, userData, { merge: true });
+      } catch (e2) {}
+
+      return true;
+    } catch (e) {
+      console.warn('Gagal menyimpan user ke Firestore Cloud:', e.message);
+      return false;
+    }
+  }
+
+  /**
+   * Sesuai Tugas 3: Ambil data akun pengguna dari Firestore Cloud
+   * Memastikan akun yang didaftarkan di perangkat lain dapat login di perangkat mana saja
+   * @param {string} email
+   * @returns {Promise<object|null>}
+   */
+  async getUserFromCloud(email) {
+    if (!email) return null;
+    const ready = await this.initSdk();
+    if (!ready || !this.db) return null;
+
+    try {
+      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+      const cleanEmail = String(email).trim().toLowerCase();
+      const userKey = cleanEmail.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      // Cek doc di grocery_sessions
+      const docRefSession = doc(this.db, 'grocery_sessions', `auth_user_${userKey}`);
+      const snapSession = await getDoc(docRefSession);
+      if (snapSession.exists()) {
+        const data = snapSession.data();
+        if (data && data.email) return data;
+      }
+
+      // Fallback cek doc di grocery_users
+      try {
+        const docRefUser = doc(this.db, 'grocery_users', userKey);
+        const snapUser = await getDoc(docRefUser);
+        if (snapUser.exists()) {
+          const dataUser = snapUser.data();
+          if (dataUser && dataUser.email) return dataUser;
+        }
+      } catch (e2) {}
+
+      return null;
+    } catch (e) {
+      console.warn('Gagal mengambil user dari Firestore Cloud:', e.message);
+      return null;
+    }
+  }
 }
 
 export const FirebaseSync = new FirebaseRealtimeEngine();

@@ -48,13 +48,29 @@ export const Auth = {
 
   /**
    * Mengambil sesi user yang sedang login saat ini
+   * Sesuai Tugas 1: Batas Waktu Sesi Login (Session Timeout 5 Jam)
+   * Jika waktu login sudah melewati 5 jam (atau tidak ada data waktu login),
+   * otomatis lakukan logout dan kembalikan null.
    * @returns {object|null}
    */
   getCurrentUser() {
     try {
-      const session = localStorage.getItem(STORAGE_KEYS.CURRENT_SESSION);
-      if (session) {
-        return JSON.parse(session);
+      const sessionStr = localStorage.getItem(STORAGE_KEYS.CURRENT_SESSION);
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        if (session && session.id) {
+          const FIVE_HOURS_MS = 5 * 60 * 60 * 1000; // 5 Jam = 18.000.000 ms
+          const now = Date.now();
+          const loginTime = session.loginTimestamp || (session.loggedInAt ? new Date(session.loggedInAt).getTime() : 0);
+
+          // Cek apakah sesi sudah melebihi 5 jam atau timestamp tidak valid
+          if (!loginTime || (now - loginTime) > FIVE_HOURS_MS) {
+            this.logout();
+            return null;
+          }
+
+          return session;
+        }
       }
     } catch (e) {}
     return null;
@@ -191,57 +207,107 @@ export const Auth = {
 
   /**
    * Masuk (Sign In)
-   * Ketentuan Poin 4: Perbaiki bug "Password salah" dengan sanitasi trim spasi & pesan spesifik
-   * @param {string} email 
+   * Sesuai Tugas 4 & 5:
+   * - Mendukung pencocokan akun via Email, Username, Nama, atau ID akun.
+   * - Jika akun ditemukan tetapi password salah: return wrongPassword: true dan pesan "Password yang Anda masukkan salah. Silakan coba lagi." (TIDAK menyuruh buat akun baru).
+   * - Jika akun benar-benar tidak terdaftar: return notRegistered: true dan pesan "Akun tidak terdaftar. Silakan buat akun terlebih dahulu."
+   * @param {string} identifier 
    * @param {string} password 
    * @returns {object}
    */
-  login(email, password) {
-    const cleanEmail = (email || '').trim().toLowerCase();
+  login(identifier, password) {
+    const cleanId = (identifier || '').trim().toLowerCase();
     const cleanPassword = (password || '').trim();
 
-    if (!cleanEmail || !cleanPassword) {
-      return { success: false, message: 'Email dan password wajib diisi!' };
+    if (!cleanId || !cleanPassword) {
+      return { success: false, message: 'Email/username dan password wajib diisi!' };
     }
 
     const users = this.getUsers();
-    const userWithEmail = users.find((u) => u.email.toLowerCase() === cleanEmail);
+    
+    // Cari berdasarkan email, username (sebelum @), nama lengkap, atau id akun
+    const matchedUser = users.find((u) => {
+      const email = (u.email || '').toLowerCase().trim();
+      const name = (u.name || '').toLowerCase().trim();
+      const username = email.split('@')[0];
+      const id = (u.id || '').toLowerCase().trim();
 
-    if (!userWithEmail) {
+      return email === cleanId || username === cleanId || name === cleanId || id === cleanId;
+    });
+
+    if (!matchedUser) {
       return { 
         success: false, 
-        message: 'Email belum terdaftar! Silakan daftar akun baru terlebih dahulu.' 
+        notRegistered: true,
+        message: 'Akun tidak terdaftar. Silakan buat akun terlebih dahulu.' 
       };
     }
 
-    // Cocokkan password (pastikan trim)
-    if (userWithEmail.password.trim() === cleanPassword) {
-      this.setSession(userWithEmail);
-      this.saveToSavedAccounts(userWithEmail);
+    // Cocokkan password (pastikan trim & case-sensitive)
+    if (String(matchedUser.password || '').trim() === cleanPassword) {
+      this.setSession(matchedUser);
+      this.saveToSavedAccounts(matchedUser);
       return {
         success: true,
-        message: `Selamat datang kembali, ${userWithEmail.name}!`,
-        user: userWithEmail
+        message: `Selamat datang kembali, ${matchedUser.name}!`,
+        user: matchedUser
       };
     }
 
+    // Password salah: HANYA tampilkan pesan password salah, JANGAN suruh bikin akun baru!
     return { 
       success: false, 
-      message: 'Password salah! Periksa kembali huruf besar/kecil password Anda.' 
+      wrongPassword: true,
+      message: 'Password yang Anda masukkan salah. Silakan coba lagi.' 
     };
   },
 
   /**
+   * Menyimpan / memperbarui akun pengguna dari Cloud ke penyimpanan lokal
+   * Sesuai Tugas 3: Sinkronisasi Lintas Perangkat (Cross-Device Sync)
+   * @param {object} user
+   * @returns {object|null}
+   */
+  upsertUser(user) {
+    if (!user || !user.email) return null;
+    try {
+      const users = this.getUsers();
+      const cleanEmail = user.email.trim().toLowerCase();
+      const existingIdx = users.findIndex((u) => u.email.toLowerCase() === cleanEmail);
+      const formattedUser = {
+        id: user.id || `user_${Date.now()}`,
+        name: user.name || 'Pengguna',
+        email: cleanEmail,
+        password: String(user.password || '').trim(),
+        createdAt: user.createdAt || new Date().toISOString()
+      };
+
+      if (existingIdx >= 0) {
+        users[existingIdx] = { ...users[existingIdx], ...formattedUser };
+      } else {
+        users.push(formattedUser);
+      }
+      this.saveUsers(users);
+      return formattedUser;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
    * Simpan sesi aktif ke LocalStorage untuk persistensi tahan F5
+   * Sesuai Tugas 1: Menyimpan loginTimestamp untuk validasi batas waktu 5 jam
    * @param {object} user 
    */
   setSession(user) {
     try {
+      const now = Date.now();
       const sessionData = {
         id: user.id,
         name: user.name,
         email: user.email.toLowerCase(),
-        loggedInAt: new Date().toISOString()
+        loggedInAt: new Date(now).toISOString(),
+        loginTimestamp: now
       };
       localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(sessionData));
     } catch (e) {}

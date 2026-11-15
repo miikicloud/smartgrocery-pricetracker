@@ -132,6 +132,8 @@ class SmartGroceryApp {
 
     // Selesai Belanja & Struk Digital (Poin 2)
     this.btnFinishShoppingMain = document.getElementById('btnFinishShoppingMain');
+    this.btnClearAllCart = document.getElementById('btnClearAllCart');
+    this.clearCartRow = document.getElementById('clearCartRow');
     this.receiptModal = document.getElementById('receiptModal');
     this.receiptPaperContainer = document.getElementById('receiptPaperContainer');
     this.btnCloseReceipt = document.getElementById('btnCloseReceipt');
@@ -171,6 +173,9 @@ class SmartGroceryApp {
     this.quickAccountsPrompt = document.getElementById('quickAccountsPrompt');
     this.quickAccountsList = document.getElementById('quickAccountsList');
     this.btnAddNewAccount = document.getElementById('btnAddNewAccount');
+    this.authAlertBanner = document.getElementById('authAlertBanner');
+    this.authAlertMsg = document.getElementById('authAlertMsg');
+    this.authAlertIcon = document.getElementById('authAlertIcon');
 
     // Download & Install Aplikasi PWA (Poin 7)
     this.btnDownloadPwaApp = document.getElementById('btnDownloadPwaApp');
@@ -215,6 +220,33 @@ class SmartGroceryApp {
     if (this.btnFinishShoppingMain) {
       this.btnFinishShoppingMain.addEventListener('click', () => {
         this.promptFinishShopping();
+      });
+    }
+
+    // Tombol Hapus Seluruh Belanjaan (Aman dengan Modal Konfirmasi Non-Blocking)
+    if (this.btnClearAllCart) {
+      this.btnClearAllCart.addEventListener('click', async () => {
+        if (!this.items || this.items.length === 0) {
+          SoundFeedback.warning();
+          this.showToast('Keranjang belanja sudah kosong!', true);
+          return;
+        }
+
+        const ok = await this.showConfirmDialog(
+          'Hapus Seluruh Belanjaan',
+          `Apakah Anda yakin ingin menghapus seluruh (${this.items.length}) barang belanjaan dari keranjang? Tindakan ini akan mengosongkan troli belanja Anda.`,
+          '🗑️',
+          'Ya, Hapus Semua'
+        );
+
+        if (ok) {
+          this.items = [];
+          Storage.saveItems(this.items);
+          this.syncCurrentDataWithCloud();
+          SoundFeedback.tap();
+          this.showToast('Seluruh barang belanjaan telah dihapus dari keranjang.');
+          this.render();
+        }
       });
     }
 
@@ -317,6 +349,7 @@ class SmartGroceryApp {
     // Auth Tabs Switch (Masuk vs Daftar)
     if (this.tabAuthLogin && this.tabAuthRegister) {
       this.tabAuthLogin.addEventListener('click', () => {
+        this.clearAuthAlert();
         this.tabAuthLogin.classList.add('active');
         this.tabAuthRegister.classList.remove('active');
         this.loginForm.style.display = 'block';
@@ -324,10 +357,24 @@ class SmartGroceryApp {
       });
 
       this.tabAuthRegister.addEventListener('click', () => {
+        this.clearAuthAlert();
         this.tabAuthRegister.classList.add('active');
         this.tabAuthLogin.classList.remove('active');
         this.registerForm.style.display = 'block';
         this.loginForm.style.display = 'none';
+      });
+    }
+
+    // Reset error styling saat pengguna mengetik ulang password atau email
+    if (this.loginPassword) {
+      this.loginPassword.addEventListener('input', () => {
+        this.loginPassword.style.borderColor = '';
+        if (this.authAlertBanner) this.authAlertBanner.style.display = 'none';
+      });
+    }
+    if (this.loginEmail) {
+      this.loginEmail.addEventListener('input', () => {
+        if (this.authAlertBanner) this.authAlertBanner.style.display = 'none';
       });
     }
 
@@ -349,16 +396,42 @@ class SmartGroceryApp {
       });
     }
 
-    // Register Form Submit
+    // Register Form Submit (Sesuai Tugas 3: Cross-Device Cloud Sync)
     if (this.registerForm) {
-      this.registerForm.addEventListener('submit', (e) => {
+      this.registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const res = Auth.register(
-          this.registerName.value,
-          this.registerEmail.value,
-          this.registerPassword.value
-        );
+        const rawName = this.registerName ? this.registerName.value : '';
+        const rawEmail = this.registerEmail ? this.registerEmail.value : '';
+        const rawPassword = this.registerPassword ? this.registerPassword.value : '';
+        const cleanEmail = (rawEmail || '').trim().toLowerCase();
+
+        // Cek cloud terlebih dahulu untuk memastikan email belum terdaftar di perangkat lain
+        try {
+          const cloudExisting = await FirebaseSync.getUserFromCloud(cleanEmail);
+          if (cloudExisting) {
+            Auth.upsertUser(cloudExisting);
+            SoundFeedback.warning();
+            this.showToast('Email sudah terdaftar, silakan login dengan akun Anda.', true);
+            setTimeout(() => {
+              if (this.tabAuthLogin) {
+                this.tabAuthLogin.click();
+                if (this.loginEmail) this.loginEmail.value = cleanEmail;
+                if (this.loginPassword) this.loginPassword.focus();
+              }
+            }, 1000);
+            return;
+          }
+        } catch (err) {}
+
+        const res = Auth.register(rawName, rawEmail, rawPassword);
         if (res.success) {
+          // Tugas 3: Simpan akun ke Cloud Firestore agar bisa login di perangkat mana saja
+          try {
+            await FirebaseSync.saveUserToCloud(res.user);
+          } catch (cloudErr) {
+            console.warn('Peringatan: Gagal sync user baru ke Firestore:', cloudErr);
+          }
+
           SoundFeedback.success();
           this.showToast(res.message);
           document.body.classList.remove('auth-locked-mode');
@@ -1121,6 +1194,7 @@ class SmartGroceryApp {
   }
 
   openAuthModal(isLocked = false) {
+    this.clearAuthAlert();
     const user = Auth.getCurrentUser();
     this.renderSavedAccounts();
 
@@ -1142,6 +1216,33 @@ class SmartGroceryApp {
     }
 
     this.authModal.classList.add('open');
+  }
+
+  showAuthAlert(message, type = 'danger') {
+    if (this.authAlertBanner && this.authAlertMsg) {
+      this.authAlertMsg.textContent = message;
+      this.authAlertBanner.style.display = 'flex';
+      this.authAlertBanner.classList.remove('alert-danger', 'alert-success');
+      this.authAlertBanner.classList.add(type === 'danger' ? 'alert-danger' : 'alert-success');
+      
+      // Bersihkan inline override agar aturan CSS kontras tinggi [data-theme="light"] dan dark mode berlaku sempurna
+      this.authAlertBanner.style.background = '';
+      this.authAlertBanner.style.borderColor = '';
+      this.authAlertBanner.style.color = '';
+
+      if (this.authAlertIcon) {
+        this.authAlertIcon.textContent = type === 'danger' ? '⚠️' : '✅';
+      }
+    }
+  }
+
+  clearAuthAlert() {
+    if (this.authAlertBanner) {
+      this.authAlertBanner.style.display = 'none';
+    }
+    if (this.loginPassword) {
+      this.loginPassword.style.borderColor = '';
+    }
   }
 
   renderSavedAccounts() {
@@ -1192,34 +1293,9 @@ class SmartGroceryApp {
     }
 
     // 2. Render quick prompt di form login jika ada akun tersimpan
-    if (this.quickAccountsPrompt && this.quickAccountsList) {
-      if (saved.length > 0 && !currentUser) {
-        this.quickAccountsPrompt.style.display = 'block';
-        this.quickAccountsList.innerHTML = saved.map((acc) => {
-          const initial = (acc.name || 'U').charAt(0).toUpperCase();
-          return `
-            <button type="button" class="btn-quick-switch" data-account-id="${acc.id}" style="width:100%; display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); border:1px solid var(--border-subtle); padding:6px 10px; border-radius:var(--radius-md); text-align:left; cursor:pointer;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <div class="account-avatar-circle" style="width:26px; height:26px; font-size:0.75rem;">${initial}</div>
-                <div>
-                  <div style="font-size:0.78rem; font-weight:700; color:var(--text-main);">${acc.name}</div>
-                  <div style="font-size:0.68rem; color:var(--text-muted);">${acc.email}</div>
-                </div>
-              </div>
-              <span style="font-size:0.72rem; color:var(--emerald-400); font-weight:700;">Masuk Instan →</span>
-            </button>
-          `;
-        }).join('');
-
-        this.quickAccountsList.querySelectorAll('.btn-quick-switch').forEach((btn) => {
-          btn.addEventListener('click', (e) => {
-            const id = e.currentTarget.dataset.accountId;
-            this.handleSwitchAccount(id);
-          });
-        });
-      } else {
-        this.quickAccountsPrompt.style.display = 'none';
-      }
+    // Sesuai Tugas 2: Sembunyikan Fitur "Masuk Instan" dari antarmuka pengguna
+    if (this.quickAccountsPrompt) {
+      this.quickAccountsPrompt.style.display = 'none';
     }
   }
 
@@ -1264,9 +1340,28 @@ class SmartGroceryApp {
     }
   }
 
-  processLogin(email, password) {
-    const result = Auth.login(email, password);
+  async processLogin(email, password) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      this.showToast('Email dan password wajib diisi!', true);
+      return;
+    }
+
+    // Sesuai Tugas 3: Ambil data akun dari Firestore Cloud untuk sinkronisasi lintas perangkat (Cross-Device)
+    try {
+      const cloudUser = await FirebaseSync.getUserFromCloud(cleanEmail);
+      if (cloudUser) {
+        Auth.upsertUser(cloudUser);
+      }
+    } catch (err) {
+      console.warn('Cek cloud user gagal, menggunakan data lokal:', err);
+    }
+
+    const result = Auth.login(cleanEmail, cleanPassword);
     if (result.success) {
+      this.clearAuthAlert();
       SoundFeedback.success();
       this.showToast(result.message);
       document.body.classList.remove('auth-locked-mode');
@@ -1306,6 +1401,22 @@ class SmartGroceryApp {
     } else {
       SoundFeedback.warning();
       this.showToast(result.message, true);
+      this.showAuthAlert(result.message, 'danger');
+
+      // Sesuai Perbaikan: Jika password salah, JANGAN suruh bikin akun baru!
+      if (result.wrongPassword) {
+        if (this.loginPassword) {
+          this.loginPassword.style.borderColor = 'var(--rose-500)';
+          this.loginPassword.value = '';
+          this.loginPassword.focus();
+        }
+      } else if (result.notRegistered) {
+        // Jika akun memang tidak ditemukan, beri tahu tanpa me-redirect paksa
+        if (this.loginEmail) {
+          this.loginEmail.style.borderColor = 'var(--rose-500)';
+          this.loginEmail.focus();
+        }
+      }
     }
   }
 
@@ -1575,13 +1686,18 @@ class SmartGroceryApp {
       : this.items.filter((it) => it.category === this.selectedCategory);
 
     if (filteredItems.length === 0) {
+      if (this.clearCartRow) this.clearCartRow.style.display = 'none';
+      if (this.btnFinishShoppingMain && this.btnFinishShoppingMain.parentElement) {
+        this.btnFinishShoppingMain.parentElement.style.display = 'none';
+      }
+
       this.groceryListContainer.innerHTML = `
         <div class="empty-cart-state">
           <div class="empty-cart-icon">${getIcon('cart')}</div>
-          <div class="empty-cart-title">Keranjang Belanja Kosong</div>
-          <p class="empty-cart-subtitle">Mulai tambahkan barang kebutuhan bulanan kamu menggunakan tombol di bawah atau pilih Cepat dari katalog di atas.</p>
+          <div class="empty-cart-title">Keranjang Belanja Masih Kosong</div>
+          <p class="empty-cart-subtitle">Keranjang belanja masih kosong, silakan scan atau tambahkan kebutuhan pokok pertamamu dengan tombol di bawah atau pilih Cepat dari katalog di atas.</p>
           <button id="btnEmptyAdd" type="button" class="btn-primary" style="margin-top:6px; font-size:0.8rem; padding:8px 16px;">
-            + Tambah Barang Sekarang
+            + Tambah Barang Pertama
           </button>
         </div>
       `;
@@ -1590,6 +1706,11 @@ class SmartGroceryApp {
         btnEmptyAdd.addEventListener('click', () => this.openItemModal());
       }
       return;
+    }
+
+    if (this.clearCartRow) this.clearCartRow.style.display = 'flex';
+    if (this.btnFinishShoppingMain && this.btnFinishShoppingMain.parentElement) {
+      this.btnFinishShoppingMain.parentElement.style.display = 'block';
     }
 
     filteredItems.forEach((item) => {
